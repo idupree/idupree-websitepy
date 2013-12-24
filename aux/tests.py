@@ -266,6 +266,10 @@ def test_http_response(route, response):
         # TODO allow it if there are other Link: headers also:
         # search Link: headers for it.
         test("HTTP Link rel=canonical", lambda:test.eq(resp.headers['Link'], '<http://www.idupree.com{}>; rel="canonical"'.format(route)))
+    else:
+      # TODO allow it if there are other Link: headers also:
+      # search Link: headers for it.
+      test("Has no HTTP Link rel=canonical", lambda:test.notin('Link', resp.headers))
 
     if route in status_codes_to_test:
       test("status matches expectation", lambda:test.eq(resp.status_code,
@@ -296,7 +300,10 @@ def test_http_response(route, response):
       test('contains charset utf-8', lambda:test.re(br'''charset=['"]?utf-8''', resp.body))
       test('does not refer to an SCSS mime type', lambda:test.notre(br'text/scss', resp.body))
       test('does not contain @mixin or @include', lambda:test.notre(br'@mixin|@include', resp.body))
-      test('has rel=canonical of idupree.com', lambda:test.re(br'''<link rel="canonical" href="http://www\.idupree\.com'''+re.escape(route).encode('utf-8')+br'"\s*/?>', resp.body))
+      if route in existent_routes:
+        test('has rel=canonical of idupree.com', lambda:test.re(br'''<link rel="canonical" href="http://www\.idupree\.com'''+re.escape(route).encode('utf-8')+br'"\s*/?>', resp.body))
+      else:
+        test('has no <link rel="canonical">', lambda:test.notre(br'''<link rel="canonical"''', resp.body))
 #    validate_req = '''POST http://127.0.0.1:8888/?parser=html5&out=gnu HTTP/1.1
 #Connection: close{}
 #
