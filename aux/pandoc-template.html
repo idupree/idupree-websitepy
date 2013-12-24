@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html$if(lang)$ lang="$lang$"$endif$>
+<head>
+  <meta charset="utf-8">
+  <title>$if(title-prefix)$$title-prefix$ - $endif$$pagetitle$</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+$for(author-meta)$
+  <meta name="author" content="$author-meta$">
+$endfor$
+$if(date-meta)$
+  <meta name="dcterms.date" content="$date-meta$">
+$endif$
+  <link rel="stylesheet" href="/style.css?rr">
+$if(head)$
+  $head$
+$endif$
+  <!--AUTOHEAD-->
+  <!--[if lt IE 9]>
+    <script src="/html5shiv-printshiv.js?rr"></script>
+  <![endif]-->
+</head>
+<body>
+<div class="tr_logo"><a class="tr_logo_a" href="/"><img src="/nabla.png?rr" width=64 height=64
+/><span class="tr_logo_name">idupree</span></a></div>
+<div id="content">
+$if(title)$
+<h1>$title$</h1>
+$endif$
+$body$
+</div>
+</body>
+</html>

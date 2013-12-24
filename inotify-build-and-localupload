@@ -1,0 +1,2 @@
+#!/bin/sh
+exec aux/inotify-build-and-localupload.py
