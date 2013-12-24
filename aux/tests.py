@@ -230,15 +230,19 @@ def get_redirect_target_to_test(route):
 #also what about multi domain routes
 
 
+# is this sensible?
+def dedomain(url):
+  return re.sub('^http://www\.idupree\.com', '', url)
 
 os.chdir(os.path.dirname(os.path.join('.', __file__)))
 os.chdir('..')
 # The transparent gif will never change meaning, so it's fine
 # as a well-known nigh-forever-cacheable name.
 with open('../+public-builds/build/nocdn-resource-routes', 'r') as f:
-  resource_routes = set(f.read().split('\n')) | {'/t.gif'}
+  resource_routes = set(map(dedomain, f.read().split('\n'))) | {'/t.gif'}
 with open('../+public-builds/build/nonresource-routes', 'r') as f:
-  nonresource_routes = set(f.read().split('\n'))
+  nonresource_routes = set(map(dedomain, f.read().split('\n')))
+
 existent_routes = resource_routes | nonresource_routes
 tested_routes = existent_routes | set(status_codes_to_test)
 
