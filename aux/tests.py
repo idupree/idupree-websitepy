@@ -230,9 +230,10 @@ def get_redirect_target_to_test(route):
 #also what about multi domain routes
 
 
+the_domain = 'http://www.idupree.com'
 # is this sensible?
 def dedomain(url):
-  return re.sub('^http://www\.idupree\.com', '', url)
+  return re.sub(r'^'+re.escape(the_domain), '', url)
 
 os.chdir(os.path.dirname(os.path.join('.', __file__)))
 os.chdir('..')
@@ -281,7 +282,7 @@ def test_http_response(route, response):
 
     if get_redirect_target_to_test(route):
       test("redirects to the correct place", lambda:test.eq(resp.headers['Location'],
-        get_redirect_target_to_test(route)))
+        the_domain+get_redirect_target_to_test(route)))
 
     if route == '/favicon.ico':
       # An out-of-date favicon isn't very serious
