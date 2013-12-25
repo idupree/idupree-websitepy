@@ -85,7 +85,7 @@ def custom_site_preprocessing(do):
   file_metadata = {}
   route_metadata = {}
 
-  def add_route(route, f):
+  def add_route(route, f = None):
     assert(route not in route_metadata)
     # hmm file_metadata therefore shouldn't be updated after this is called,
     # because it wouldn't have an effect on the route's metadata then
@@ -133,7 +133,13 @@ def custom_site_preprocessing(do):
       if re.search('^text/|[+/](?:xml|json)$|^application/javascript$', mime):
         mime += '; charset=utf-8'
       file_metadata[f].headers.append(('Content-Type', mime))
-    
+
+  def add_redirect(status, from_route, to_route):
+    add_route(from_route)
+    route_metadata[from_route].status = status
+    route_metadata[from_route].headers.append((
+        'Location', urljoin(from_route, to_route)))
+
   for srcf in files_to_consider:
     src = join('src/site', srcf)
     route = None
@@ -242,6 +248,19 @@ def custom_site_preprocessing(do):
                               site_source_prefix = 'site')
 
   nonresource_routes = [route for route in route_metadata]
+
+  # Auto redirect trailing slashes or lack thereof,
+  # regardless of whether there were directories involved in
+  # creating the routes.
+  for route in nonresource_routes:
+    if len(route) > 1:
+      if route[-1] == '/':
+        dual = route[:-1]
+      else:
+        dual = route+'/'
+      if dual not in route_metadata:
+        add_redirect(301, dual, route)
+
   for f in rewriter.recall_all_needed_resources():
     add_route(fake_resource_route+f, f)
 
