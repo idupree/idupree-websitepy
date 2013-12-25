@@ -385,12 +385,12 @@ def nginx_openresty(do, rewriter, route_metadata):
             [nginx_pagecontent_dir_build+recall_nginx_pagecontent_path(f, gz)]):
             #['nginx/pages/'+('gz/' if gz else 'nogz/')+f]):
           cp_ish(src, dest)
-  #TODO include status and maybe gzippability in make_etag()
-  def make_etag(headers, f):
+  def make_etag(status, headers, f):
     h = hashlib.sha384()
     # There's probably nothing hidden by adding a random secret here,
     # but it's also harmless.
     h.update(secrets.nginx_hash_random_bytes)
+    h.update(str(status).encode('ascii')+b"\n")
     # (Omit irrelevant auto server headers like "Date:")
     for k, v in headers:
       h.update(k.encode('utf-8')+b": "+v.encode('utf-8')+b"\n")
@@ -411,8 +411,8 @@ def nginx_openresty(do, rewriter, route_metadata):
     status = route_metadata[route].status
     if gzippable:
       headers.append(("Vary", "Accept-Encoding"))
-    etag_nogz = make_etag(headers, f)
-    etag_gz = make_etag(headers + [("Content-Encoding", "gzip")], f)
+    etag_nogz = make_etag(status, headers, f)
+    etag_gz = make_etag(status, headers + [("Content-Encoding", "gzip")], f)
     # Python and Lua string syntaxes are similar enough that we can use
     # Python repr() to make Lua strings. 
     rule = ["function()"]
