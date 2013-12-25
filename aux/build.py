@@ -255,13 +255,14 @@ def custom_site_preprocessing(do):
     route_metadata[route].headers.append(("X-Robots-Tag",
       "noarchive" if route in routes_robots_should_index else "noarchive, noindex"))
     route_metadata[route].headers.append(("X-Frame-Options", "SAMEORIGIN"))
-    # http://googlewebmastercentral.blogspot.com/2011/06/supporting-relcanonical-http-headers.html
-    rrf = fake_rr_to_f(route)
-    if rrf != None:
-      canonical_url = canonical_resources_route+rewriter.recall_rewritten_resource_name(rrf)
-    else:
-      canonical_url = route
-    route_metadata[route].headers.append(("Link", '<'+canonical_url+'>; rel="canonical"'))
+    if route_metadata[route].status in {200}:
+      # http://googlewebmastercentral.blogspot.com/2011/06/supporting-relcanonical-http-headers.html
+      rrf = fake_rr_to_f(route)
+      if rrf != None:
+        canonical_url = canonical_resources_route+rewriter.recall_rewritten_resource_name(rrf)
+      else:
+        canonical_url = route
+      route_metadata[route].headers.append(("Link", '<'+canonical_url+'>; rel="canonical"'))
 
   utils.write_file_text('nocdn-resource-routes',
     '\n'.join(nocdn_resources_route+rewriter.recall_rewritten_resource_name(f)
