@@ -95,6 +95,43 @@ def merge_older_stuff_into(targetdir, olderstuffdir):
         pass  #errors resulting from olderdirpath not being a directory
     rmtree(olderstuffdir)
 
+def generic_do(sources, dests, build_system_sources, dirs_with_already_built_stuff = ()):
+  """
+  Version of 'do' that doesn't depend on a run* invocation.
+  Normally the only dependencies on the run* invocation are
+    * listing the set of files that everything depends on, and
+    * listing the directories to get already-built files from.
+  If you use this directly, you specify those explicitly instead.
+  """
+  fullsources = itertools.chain(build_system_sources, sources)
+  latest_modified_source = max(_mtime(source) for source in fullsources)
+  # Saying to generate a file when it's already there is elided.
+  if all(map(exists, dests)):
+    return
+  # Make sure that directories keep consistent mtimes (for e.g.
+  # rsync efficiency).
+  parent_dir_mtimes = {}
+  for dest in dests:
+    # Helpfully auto-generate parent directories.
+    makedirs_with_mtime(dirname(dest), latest_modified_source)
+    parent_dir_mtimes[dirname(dest)] = _mtime(dirname(dest))
+  for built in dirs_with_already_built_stuff:
+    # Check == not >= so that reverting to an older source file version,
+    # or manually modifying a dest file, will trigger a rebuild.
+    up_to_date = all(_mtime_opt(join(built, dest)) == latest_modified_source for dest in dests)
+    if up_to_date:
+      for dest in dests:
+        link(join(built, dest), dest)
+      break
+  else: #A loop's "else" runs if 'break' was not called
+    # Call the building code.
+    yield sources, dests
+    # Make sure the dests will be seen as up-to-date.
+    for dest in dests:
+      _set_mtime(dest, latest_modified_source)
+  for parent_dir, mtime in parent_dir_mtimes.items():
+    _set_mtime(parent_dir, max(mtime, latest_modified_source))
+
 def run_basic(builds_dir, build_system_sources):
   """
   Usage:
@@ -167,34 +204,7 @@ def run_basic(builds_dir, build_system_sources):
   _set_mtime(building_dir, max(_mtime(source) for source in build_system_sources))
   # 'do': callback used to run a build rule if rebuild is needed.
   def do(sources, dests):
-    fullsources = itertools.chain(build_system_sources, sources)
-    latest_modified_source = max(_mtime(source) for source in fullsources)
-    # Saying to generate a file when it's already there is elided.
-    if all(map(exists, dests)):
-      return
-    # Make sure that directories keep consistent mtimes (for e.g.
-    # rsync efficiency).
-    parent_dir_mtimes = {}
-    for dest in dests:
-      # Helpfully auto-generate parent directories.
-      makedirs_with_mtime(dirname(dest), latest_modified_source)
-      parent_dir_mtimes[dirname(dest)] = _mtime(dirname(dest))
-    for built in dirs_with_already_built_stuff:
-      # Check == not >= so that reverting to an older source file version,
-      # or manually modifying a dest file, will trigger a rebuild.
-      up_to_date = all(_mtime_opt(join(built, dest)) == latest_modified_source for dest in dests)
-      if up_to_date:
-        for dest in dests:
-          link(join(built, dest), dest)
-        break
-    else: #A loop's "else" runs if 'break' was not called
-      # Call the building code.
-      yield sources, dests
-      # Make sure the dests will be seen as up-to-date.
-      for dest in dests:
-        _set_mtime(dest, latest_modified_source)
-    for parent_dir, mtime in parent_dir_mtimes.items():
-      _set_mtime(parent_dir, max(mtime, latest_modified_source))
+    return generic_do(sources, dests, build_system_sources, dirs_with_already_built_stuff)
   yield building_dir, do
   # Success: move the build to the completed-build location; clean up.
   if exists(building_old_dir): rmtree(building_old_dir)
