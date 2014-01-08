@@ -159,7 +159,7 @@ def custom_site_preprocessing(do):
       else:
         for _ in do([src], [dest]):
           autohead(src, dest, url)
-    elif re.search(r'\.(txt)$|^t\.gif$', srcf):
+    elif re.search(r'\.(txt)$|^t\.gif$|^haddock-presentation-2010/', srcf):
       f = srcf
       route = scheme_and_domain+'/'+f
       dest = join('site', f)
