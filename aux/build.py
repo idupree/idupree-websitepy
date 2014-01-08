@@ -165,6 +165,14 @@ def custom_site_preprocessing(do):
       dest = join('site', f)
       for _ in do([src], [dest]):
         os.link(src, dest)
+    elif re.search(r'\.(3[0-9][0-9])$', srcf):
+      extless_path = re.sub(r'\.(3[0-9][0-9])$', '', srcf)
+      # Hmm should 'index.301' be a thing? or '.301'? or just use dirname.301
+      route = scheme_and_domain+'/'+extless_path
+      # Alas, this code currently can't support redirecting to a resource.
+      add_redirect(int(srcf[-3:]), route, utils.read_file_text(src).strip())
+      # Don't add the route again below
+      route = None
     else:
       f = srcf
       dest = join('site', f)
@@ -261,7 +269,11 @@ def custom_site_preprocessing(do):
       else:
         dual = route+'/'
       if dual not in route_metadata:
-        add_redirect(301, dual, route)
+        if route_metadata[route].status == 301:
+          # Avoid pointless double redirect where applicable
+          route_metadata[dual] = copy.deepcopy(route_metadata[route])
+        else:
+          add_redirect(301, dual, route)
 
   for f in rewriter.recall_all_needed_resources():
     add_route(fake_resource_route+f, f)
