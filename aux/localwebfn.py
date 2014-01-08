@@ -58,16 +58,11 @@ def ask_for_POST(get_path, post_path, html_to_serve_on_get_path, port_number = 9
 queryandfragment_re = re.compile(r'[?#].*')
 nonrelativeurl_re = re.compile(urlregexps.urlwithdomain+'|'+urlregexps.domainrelativeurl)
 def url_file_exists(url, filedirname, existence):
-  # TODO relpath and url rel correctly, crib from existing work in fake spider in build.py
-  # TODO fewer syscalls; memoize?
-  # TODO directory references often shouldn't be listed; exists/isdir/islink...
   if re.search(nonrelativeurl_re, url):
     ret = False
   else:
     path = normpath(join(filedirname, re.sub(queryandfragment_re, '', url)))
     ret = (path in existence and existence[path] == True)
-    #ret = isfile(re.sub(r'[?#].*', '', normpath(join(dirname(filename), url))))
-  #print('testing existence of:' + url, ':', ret)
   return ret
 
 def swizzle_file(display_filename, base_relative_filename, cwd_relative_filename, filecontents, existence):
@@ -93,9 +88,7 @@ def swizzle_file(display_filename, base_relative_filename, cwd_relative_filename
       r'=(?P<url>'+urlregexps.url+r')(?!'+urlregexps.urlchar+r')',
       )]
   for lineno, line in enumerate(lines):
-    #print(lineno)
     idx = 0
-    #print('Analyzing:', line)
     bestmatches = []
     while idx < len(line):
       # This algorithm is fairly inefficient but its precise semantics are
@@ -114,7 +107,6 @@ def swizzle_file(display_filename, base_relative_filename, cwd_relative_filename
         idx += 1
       else:
         bestmatch = min(existent_matches, key=lambda m: (m.start('url'), -m.end('url')))
-        #print('chose:', str(bestmatch.start())+':'+bestmatch.group(), 'as', bestmatch.re.pattern)
         idx = bestmatch.end()
         bestmatches.append(bestmatch)
     if len(bestmatches) == 0:
@@ -122,10 +114,6 @@ def swizzle_file(display_filename, base_relative_filename, cwd_relative_filename
     linehtmlbuilder = []
     linehtmlbuilder.append('<p class="context"><span class="lineno">'
       +display_filename+':'+str(lineno+1)+'</span><span class="contextcontent">')
-    #print('Done analyzing:', line)
-    #for match in re.finditer(urlregexps.urlchar+'+', line):
-    #  linehtmlbuilder.append(html.escape(line[idx:match.start()]))
-    #  idx = match.end()
     idx = 0
     def idxtill(nextloc):
       nonlocal idx
@@ -184,19 +172,7 @@ def swizzle_file(display_filename, base_relative_filename, cwd_relative_filename
         linehtmlbuilder.append('''<span class="orig">'</span>''')
       linehtmlbuilder.append('</a>')
       transformations[input_id] = (cwd_relative_filename, lineno, start, line[start:end], new_text)
-      
-      #linehtmlbuilder.append(html.escape(line[idx:match.start('url')]))
-      #idx = match.end('url')
-      #adding = lineno % 2 == 0  #lol test hack
-      #linehtmlbuilder.append(
-      #  '<a href="javascript:;" class="modify"><span class="orig">'
-      #  #+html.escape(match.group())
-      #  +html.escape(match.group('url'))
-      #  +('</span>' if adding else '')
-      #  +'<span class="toggle on">?rr</span>'+('' if adding else '</span>')
-      #  +'</a>')
     idxtill(len(line.rstrip('\r\n')))
-    #linehtmlbuilder.append(html.escape(line[idx:].rstrip('\r\n')))
     linehtmlbuilder.append('</span></p>\n')
     htmlbuilder.extend(linehtmlbuilder)
   return (''.join(htmlbuilder), transformations)
@@ -256,15 +232,6 @@ a.modify.off .orig:not(.modified) { }
 a.modify.on .orig:not(.modified) { color: red; text-decoration: line-through; display: inline; }
 a.modify.off .modified:not(.orig) { display: none; }
 a.modify.on .modified:not(.orig) { color: #00ff00; }
-/*
-.orig { color: black; }
-.orig .toggle.on { color: blue; }
-.orig .toggle.off { color: red; text-decoration: line-through; display: inline; }
-.toggle.on { color: green; }
-.toggle.off { display: none; }
-.toggle.off { xcolor: yellow; }*/
-/*.modify { cursor: pointer; }
-.modify:hover, .modify:active, .modify:focus { text-decoration: underline; }*/
 .lineno::after { color: black; content: ": "; }
 </style>
 <script>
@@ -274,16 +241,9 @@ a.modify.on .modified:not(.orig) { color: #00ff00; }
 $(function() {
   $('.modify').click(function() {
     var newmodify = !$(this).hasClass('on');
-    //if(newmodify) {
-    //  $(this).addClass('on').removeClass('off');
     $(this).toggleClass('on').toggleClass('off');
     $('input.modifyi', this).prop('checked', newmodify);
-    //$('input.modifyi', this)
-    //$(this).toggleClass('on').toggleClass('off');
-    //$('.toggle', this).toggleClass('on').toggleClass('off');
   });
-// .mousedown(function(e) { e.preventDefault() }); //stops doubleclick.. and click+drag.. selection
-// http://stackoverflow.com/questions/880512/prevent-text-selection-after-double-click
 });
 </script>
 </head>
@@ -307,7 +267,6 @@ $(function() {
       assert(not any(k in transformations for k in transf))
       transformations.update(transf)
       htmlbuilder.append(fhtml)
-      #htmlbuilder.append(swizzle_file(f, join(within_dir, f), filecontents, existence))
   htmlbuilder.append('''</form></body></html>''')
   return (''.join(htmlbuilder), transformations)
 
@@ -328,8 +287,6 @@ def mutating_swizzle_file(f, linereplacements):
       builder.append(willbe)
     builder.append(line[idx:])
   utils.write_file_text(f, ''.join(builder))
-    
-# buttons 'select all' / 'deselect all' / 'unrr all'
     
 def mutating_swizzle(possible_transformations, posted):
   mutate = []
@@ -362,101 +319,8 @@ if __name__ == '__main__':
   main()
 
 
-
-
-    # do several searches
-    # urlchar+              (double-quoted anywhere)
-    # 'nonquoteurlchar+'    (css, js)
-    # [(nonurlchar]balancedparenurl[)nonurlchar]    (markdown, css url())
-    # =urlchar+    (sourceMappingURL=, href=)
-    # 
-    # allow match where url is a file or such. (html unescape? +/- ?rr, .html, index.html?)
-    # prefer the match that start()s earliest in the line.
-    # then repeat, from end().
-    #
-    # [urlchar+    (mediawiki)
-    # try every match even if they overlap, somehow? for mediawiki.
-    # no wait thats fine?
-    #
-    # things this will miss:
-    # css/js referencing 'matan\'s-hair.png' rather than "matan's-hair.png", or
-    #   gratuitously using \ in url strings.
-    # in html, &amp; and &variousstuff; in urls preceding the ?# parts; although
-    # currently my code is broken with those anyway, and all of them except for
-    # non-percent-encoded-& can be represented in Unicode directly.
-    # i'll need & in urls though...4color stuff uses it.
-    # "/&amp;" and "/&" are both valid urls, alas! and html can contain <script>
-    # that lacks entity-expansion.  but..rr stuff neednt have '&' files i think,
-    # it's just the spider that has to deal with it
-    #
-    # () not replaced, '' replaced with "" probably, 
-    # So the = issue is that ?rr doesnt show the begin the way {{}} does, hmm...
-    # well i could require in some cases for the beginning to be /|./|../
-    # (?!(?<!urlchar)[alnum]+=[./])
-    # or better lets see, any = in the url must be preceded by a /, and the url
-    # can be preceded by =.  also the url can probably robustly be in '' but i think i dont need that
-    # oh this in markdown: [Google](http://google.com/ "Google")
-    # ![alttext](./a(b)c.png?rr)
-    # 
-    # (?<!urlchar)[urlchar - =()[]']*(?:/[urlchar]*)?\?rr(?![urlchar - )\]'])
-    # or remove ' , [ ?
-    # should : also allow other chars after it? allowing "mailto:%22e=vil%22@evil.com"
-    # which is actually also RFC822-legal as "mailto:e=vil@evil.com"
-    # not that ?rr can do anything with mailto nor absolute refs... hmm...
-    # and banning xpath:attr=./foo?rr (although in xml the quotes would be needed)
-    # mailto:?e=vil@evil.com?rr
-    # mailto:?rr=e=vil@evil.com?rr
-    # nevermind
-    # hmm markdown [wahh/](x.png?rr) or [wahh/](./x.png?rr) won't work hmm.
-    # it'll find wahh/](x.png?rr, or it won't because preceding [ but better bug:
-    # [ah hah/](x.png?rr) ---> hah/](x.png?rr
-    # I could require any with special chars to start with /|./|../, in which case
-    # [ah /hah](x.png?rr) ---> /hah](x.png?rr
-    # At least there'll be error msgs that that path doesn't exist...
-    # [ah (./hah/](x.png?rr) ---> ./hah/](x.png?rr
-    # [ah (./hah/](x.png?rr titletext) ---> ./hah/](x.png?rr
-    # [ah ./hah/](x.png?rr titletext) ---> ./hah/](x.png?rr
-    # also the transformed version might (in HTML) *need* double-quotes
-    # Maybe I should special case sourceMappingURL?
-    # i think the "/ before =" rule might be the least trouble
-    # oh because of 
-
-
-#server.serve_forever()
-#except KeyboardInterrupt:
-#  print('^C received, shutting down the web server')
-#  server.socket.close()
-
-#      self.send_response(404)
-#      self.send_header('Content-Type', 'text/plain')
-#      self.end_headers()
-#      self.wfile.write(b"404 Not Found")
-#      return
-      #return #
-      #self.server.shutdown()
-      #raise Done()
-
-#class Done(BaseException):
-#  pass
-#      self.send_response(200)
-#      self.send_header('Content-Type', 'text/plain')
-#      self.end_headers()
-#      self.wfile.write(b'Success.')
-#      self.wfile.write(b'''<!DOCTYPE html><title>Success!</title><script>window.open('','_parent',''); close()</script><p>Success.</p>''')
-    #line_rest = line
-'''
-      matches = tuple(filter(lambda m: m,
-                             (re.search(s, line_rest) for s in searches)))
-      print('unfiltered:', *[str(m.start())+':'+m.group()+' ' for m in matches])
-      if len(matches) == 0:
-        break
-      existent_matches = tuple(filter(lambda m: url_file_exists(m.group('url')), matches))
-      if len(existent_matches) == 0:
-        line_rest = line_rest[min(m.end() for m in matches):]
-        continue
-      print('filtered:', *[str(m.start())+':'+m.group()+' ' for m in existent_matches])
-      bestmatch = min(existent_matches, key=lambda m:m.start())
-      print('chose:', str(bestmatch.start())+':'+bestmatch.group())
-      line_rest = line_rest[bestmatch.end():]
-      #print bestmatch.span()
-      '''
+# TODO buttons 'select all' / 'deselect all' / 'unrr all'
+# TODO consider sourceMappingURL.
+# Note &amp; and %encoded and \'escaped URL strings may be missed by this code.
+# %encoding might be a TODO to decode to find what it points to, at least
+# if the rr code can deal with that or if I add .html conversion.
