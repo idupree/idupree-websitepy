@@ -283,6 +283,8 @@ def custom_site_preprocessing(do):
       route_metadata[route].headers.append(('Cache-Control', 'max-age=15, must-revalidate'))
     elif is_fake_rr(route) or urlparse(route).path == '/t.gif':
       route_metadata[route].headers.append(("Cache-Control", "max-age=8000000"))
+    elif urlparse(route).path == '/favicon.ico':
+      route_metadata[route].headers.append(('Cache-Control', 'max-age=400000'))
     else:
       route_metadata[route].headers.append(("Cache-Control", "max-age=300"))
     route_metadata[route].headers.append(("X-Robots-Tag",
