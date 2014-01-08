@@ -33,6 +33,7 @@ loop = asyncio.get_event_loop()
 
 class Client(asyncio.Protocol):
     def __init__(self, req):
+        super(Client, self).__init__()
         self.req = req
         self.response = asyncio.Future()
         self.partial_response = bytearray()
@@ -313,7 +314,7 @@ def test_http_response(route, response):
 #Connection: close{}
 #
 #{}'''.format(resp.headers.get('Content-Type'))
-      #TODO flexible ip/ports
+      #TODO flexible IP/ports for running the validator
       validate_req = '''GET /?parser=html5&out=gnu&doc={} HTTP/1.1
 Connection: close
 

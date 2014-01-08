@@ -49,7 +49,7 @@ def build():
 
 #    httpd_possibly_along_with_cdn_incapable_of_gz_negotiation(do, rewriter, routes, files_to_gzip, file_headers)
     
-class RouteInfo:
+class RouteInfo(object):
   """
   status: numeric HTTP status code
   headers: list of pairs of str (header name, header value)
@@ -143,6 +143,7 @@ def custom_site_preprocessing(do):
   for srcf in files_to_consider:
     src = join('src/site', srcf)
     route = None
+    f = None
     if re.search(r'\.(html|md)$', srcf):
       is_markdown = re.search(r'\.md$', srcf)
       extless_path = re.sub(r'\.(html|md)$', '', srcf)
@@ -169,7 +170,8 @@ def custom_site_preprocessing(do):
       dest = join('site', f)
       for _ in do([src], [dest]):
         os.link(src, dest)
-    add_file(f)
+    if f != None:
+      add_file(f)
     if route != None:
       add_route(route, f)
 
@@ -223,8 +225,8 @@ def custom_site_preprocessing(do):
     contents = utils.read_file_binary(join('site', f))
     for href in re.finditer(
         br'(?<!'+urlregexps.urlbyte+br')(?:'+
-        br'''href=(?P<quote>["']?)(?P<url1>'''+urlregexps.urlchar+br'''+)(?<!\?rr)(?P=quote)'''+
-        br'''|(?P<url2>'''+urlregexps.urlchar+br'''+)\?rr'''+
+        br'''href=(?P<quote>["']?)(?P<url1>'''+urlregexps.urlbyte+br'''+)(?<!\?rr)(?P=quote)'''+
+        br'''|(?P<url2>'''+urlregexps.urlbyte+br'''+)\?rr'''+
         br')(?!'+urlregexps.urlbyte+br')'
         ,
         contents):
