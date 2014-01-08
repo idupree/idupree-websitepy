@@ -293,7 +293,7 @@ def custom_site_preprocessing(do):
   route_metadata[None] = copy.deepcopy(file_metadata['404.html'])
   route_metadata[None].headers.extend([
       ("X-Frame-Options", "SAMEORIGIN"),
-      ("X-Robots-Tag", "noarchive, noindex"),
+      ("X-Robots-Tag", "noarchive, noindex, nosnippet"),
       ])
 
   #'twould be elegant if each resource can be in a different server...
