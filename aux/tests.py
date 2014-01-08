@@ -174,6 +174,10 @@ status_codes_to_test = {
 	# what about other things under /four-colour/ ?
 	'/four-colour/': (301, '/four-color/'),
         '/four-colour': (301, '/four-color/'),
+        '/four-color/Birkhoff-diamond/': 200,
+        '/four-color/Birkhoff-diamond': (301, '/four-color/Birkhoff-diamond/'),
+        '/four-color/Birkhoff diamond/': (301, '/four-color/Birkhoff-diamond/'),
+        '/four-color/Birkhoff diamond': (301, '/four-color/Birkhoff-diamond/'),
 	# what about making this work without cookies?
 	'/starplay/': 200,
 	'/lispy/': 200,
