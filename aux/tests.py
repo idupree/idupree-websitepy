@@ -326,12 +326,13 @@ def test_http_response(route, response):
 #
 #{}'''.format(resp.headers.get('Content-Type'))
       #TODO flexible IP/ports for running the validator
-      validate_req = '''GET /?parser=html5&out=gnu&doc={} HTTP/1.1
-Connection: close
-
-'''.format(urllib.parse.quote('http://127.0.0.1:8080'+route, ''))
-      validation_response = HttpResponse((yield from request('127.0.0.1', 8888, validate_req))).body.decode('utf-8')
-      test('validates as HTML5 (validator.nu checker)', lambda:test.notre(r' warning: | error: ', validation_response))
+      validate_req = ('''GET /?parser=html5&out=gnu&doc={} HTTP/1.0\r\n\r\n'''
+          .format(urllib.parse.quote('http://127.0.0.1:8080'+route, '')))
+      validation_response = HttpResponse((yield from request('127.0.0.1', 8888, validate_req)))
+      test('HTML5 validator working',
+           lambda:test.eq(200, validation_response.status_code))
+      test('validates as HTML5 (validator.nu checker)',
+           lambda:test.notre(r' warning: | error: ', validation_response.body.decode('utf-8')))
     
     if re.search(r'text/css', resp.headers.get('Content-Type', '')):
       test('content-type: text/css; charset=utf-8', lambda:test.eq(resp.headers['Content-Type'], 'text/css; charset=utf-8'))
@@ -379,7 +380,7 @@ def do_tests(ip, port):
     non gzipped version
     """
     return (yield from request(ip, port,
-      'GET {} HTTP/1.1\nConnection: close\nHost: www.idupree.com\n\n'.format(path)))
+      'GET {} HTTP/1.1\r\nConnection: close\r\nHost: www.idupree.com\r\n\r\n'.format(path)))
 
   @asyncio.coroutine
   def test_route(route):
