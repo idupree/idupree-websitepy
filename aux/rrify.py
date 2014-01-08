@@ -1,11 +1,28 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
-import re, html, urllib
+import sys, re, html, urllib
 from os.path import join, normpath, dirname, basename
 import create_secrets
 import urlregexps
 import utils
 import localwebfn
+
+"""
+Usage:
+./aux/rrify.py path/to/dir/to/swizzle/
+
+This swizzling looks for links that might be resource refs
+and offers (via web browser UI) to mark them with ?rr and the
+proper quotes for you.  It also lets you undo that transformation.
+It doesn't make any changes until you submit the web form.
+"""
+
+# TODO buttons 'select all' / 'deselect all' / 'unrr all'
+# TODO consider sourceMappingURL.
+# Note &amp; and %encoded and \'escaped URL strings may be missed by this code.
+# %encoding might be a TODO to decode to find what it points to, at least
+# if the rr code can deal with that or if I add .html conversion.
+# TODO have /... links be interpretable.
 
 
 queryandfragment_re = re.compile(r'[?#].*')
@@ -256,8 +273,7 @@ def mutating_swizzle(possible_transformations, posted):
     mutating_swizzle_file(f, linereplacements)
 
 def main():
-  #made testsite so mutation doesnt bug me all up
-  site = 'testsite/starplay/v2'
+  site = sys.argv[1]
   get_path = '/'+create_secrets.alnum_secret()
   post_path = '/'+create_secrets.alnum_secret()
   htmlf, possible_transformations = swizzle(site, post_path)
@@ -271,9 +287,3 @@ def main():
 if __name__ == '__main__':
   main()
 
-
-# TODO buttons 'select all' / 'deselect all' / 'unrr all'
-# TODO consider sourceMappingURL.
-# Note &amp; and %encoded and \'escaped URL strings may be missed by this code.
-# %encoding might be a TODO to decode to find what it points to, at least
-# if the rr code can deal with that or if I add .html conversion.
