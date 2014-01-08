@@ -170,6 +170,16 @@ status_codes_to_test = {
 	'/favicon.ico': 200,
 	'/_resources': 404,
 	'/_resources/': 404,
+	'/four-color/': 200,
+	# what about other things under /four-colour/ ?
+	'/four-colour/': (301, '/four-color/'),
+        '/four-colour': (301, '/four-color/'),
+	# what about making this work without cookies?
+	'/starplay/': 200,
+	'/lispy/': 200,
+	'/haddock-presentation-2010/Haddock-presentation.png': 200,
+	'/haddock-presentation-2010/Haddock-presentation-plain.svg': 200,
+	'/haddock-presentation-2010/Haddock-presentation-inkscape.svg': 200,
 	# Make sure various source directories that exist, have existed,
 	# and/or may later exist, didn't get put onto the website by accident.
 	'/nonresource-routes': 404,
@@ -266,7 +276,8 @@ def test_http_response(route, response):
     test('no Last-Modified', lambda:test.notin('Last-Modified', resp.headers))
 
     if route in existent_routes:
-      if test("status 200", lambda:test.eq(resp.status_code, 200)):
+      test("status 200 or such", lambda:test.in_(resp.status_code, {200, 301, 302, 303, 307, 410}))
+      if resp.status_code == 200:
         test('has ETag', lambda:test.in_('ETag', resp.headers))
         test('has Content-Length', lambda:test.in_('Content-Length', resp.headers))
         # TODO allow it if there are other Link: headers also:
