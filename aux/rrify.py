@@ -17,7 +17,6 @@ proper quotes for you.  It also lets you undo that transformation.
 It doesn't make any changes until you submit the web form.
 """
 
-# TODO buttons 'select all' / 'deselect all' / 'unrr all'
 # TODO consider sourceMappingURL.
 # Note &amp; and %encoded and \'escaped URL strings may be missed by this code.
 # %encoding might be a TODO to decode to find what it points to, at least
@@ -115,8 +114,10 @@ def swizzle_file(display_filename, base_relative_filename, cwd_relative_filename
       input_id = '{}:{}:{}'.format(display_filename, lineno, start)
       new_text = ''
       default_to_replace = (not orig_has_rr)
-      linehtmlbuilder.append('<a href="javascript:;" class="modify {}">'.format(
-          'on' if default_to_replace else 'off'))
+      linehtmlbuilder.append('<a href="javascript:;" class="modify {} {} {}">'.format(
+          'default_on' if default_to_replace else 'default_off',
+          'on' if default_to_replace else 'off',
+          'orig_rr' if orig_has_rr else 'modified_rr'))
       linehtmlbuilder.append('<input type="checkbox" name="{}" {} class="modifyi" />'
           .format(html.escape(input_id), 'checked="checked"' if default_to_replace else ''))
       # TODO maybe use <label> and less JS
@@ -209,10 +210,34 @@ a.modify.on .modified:not(.orig) { color: #00ff00; }
 </script>
 <script>
 $(function() {
+  function select(a_element, newmodify) {
+    if(newmodify) {
+      $(a_element).addClass('on').removeClass('off');
+    } else {
+      $(a_element).removeClass('on').addClass('off');
+    }
+    $('input.modifyi', a_element).prop('checked', newmodify);
+  }
   $('.modify').click(function() {
-    var newmodify = !$(this).hasClass('on');
-    $(this).toggleClass('on').toggleClass('off');
-    $('input.modifyi', this).prop('checked', newmodify);
+    select(this, !$(this).hasClass('on'));
+  });
+  $('#deselect_all').click(function() {
+    $('a.modify').each(function() { select(this, false); });
+  });
+  $('#select_all').click(function() {
+    $('a.modify').each(function() { select(this, true); });
+  });
+  $('#rrify_all').click(function() {
+    $('a.modify.orig_rr').each(function() { select(this, false); });
+    $('a.modify.modified_rr').each(function() { select(this, true); });
+  });
+  $('#unrrify_all').click(function() {
+    $('a.modify.orig_rr').each(function() { select(this, true); });
+    $('a.modify.modified_rr').each(function() { select(this, false); });
+  });
+  $('#defaults_all').click(function() {
+    $('a.modify.default_off').each(function() { select(this, false); });
+    $('a.modify.default_on').each(function() { select(this, true); });
   });
 });
 </script>
@@ -220,6 +245,11 @@ $(function() {
 <body>
 <form method="post" action="'''+html.escape(post_path)+'''">
 <button>SUbMiT</button>
+<button type="button" id="deselect_all">Deselect all</button>
+<button type="button" id="select_all">Select all</button>
+<button type="button" id="rrify_all">rr-ify all</button>
+<button type="button" id="unrrify_all">un-rr-ify all</button>
+<button type="button" id="defaults_all">reset to defaults</button>
 ''')
   # existence: dict from filepath relative to within_dir to
   # True/False (True: file; False: directory)
