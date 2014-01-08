@@ -154,6 +154,10 @@ def relpath_files_under(rootpath):
     for f in filenames:
       yield relpath(join(dirpath, f), rootpath)
 
+def relpath_dirs_under(rootpath):
+  for dirpath, dirnames, filenames in os.walk(rootpath):
+    yield relpath(dirpath, rootpath)
+
 # for python2/3 doctest compatibility, and general doctest readability,
 # use 'testprint'
 class Shown(object):
