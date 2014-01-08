@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 import sys, subprocess
-from os import chdir
-from os.path import dirname, join
 import utils
 
 

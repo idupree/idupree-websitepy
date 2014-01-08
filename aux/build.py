@@ -1,6 +1,6 @@
 
 import os, os.path, subprocess, re, base64, hashlib, mimetypes, copy
-from os.path import join, exists, dirname, relpath, normpath
+from os.path import join, dirname, normpath
 from urllib.parse import urljoin, urldefrag, urlparse
 
 import buildsystem, utils
@@ -257,7 +257,7 @@ def custom_site_preprocessing(do):
   rewriter = resource_rewriting.ResourceRewriter(
     files_to_rewrite, site_source_prefix = 'site', do=do)
 
-  nonresource_routes = [route for route in route_metadata]
+  nonresource_routes = [route_ for route_ in route_metadata]
 
   # Auto redirect trailing slashes or lack thereof,
   # regardless of whether there were directories involved in
