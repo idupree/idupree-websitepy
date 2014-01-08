@@ -25,4 +25,14 @@ clearlydirectoryurl = r'^[^?#]*(?:/|(^|/)\.\.?)(?:[?#]|$)'
 # likely ext: ends in .alphanumeric with at least one non-numeric character
 extension = r""".\.[ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789]*[ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz][ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789]*$"""
 
+url = urlchar+r'+'
+url_without_single_quotes = urlchar_sans_single_quote+r'+'
+# HACK: regexps cannot correctly parse arbitrary nesting depth,
+# so limit the nesting depth since we don't need to do it right.
+def url_with_balanced_parentheses(nesting = 7):
+  return urlchar_sans_parentheses+r'*' if nesting <= 0 else (
+    urlchar_sans_parentheses+r'*\('
+    +url_with_balanced_parentheses(nesting-1)
+    +r'\)'+urlchar_sans_parentheses+'*'
+    )
 
