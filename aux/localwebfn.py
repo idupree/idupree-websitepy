@@ -8,65 +8,52 @@ import create_secrets
 import urlregexps
 import utils
 
-PORT_NUMBER = 9999
 
-get_path = '/'+create_secrets.alnum_secret()
-already_gotten = False
-post_path = '/'+create_secrets.alnum_secret()
-already_posted = False
-
-print(get_path)
-print(post_path)
-
-class Handler(BaseHTTPRequestHandler):
-  def __init__(self, html, *args):
-    self.html = html
-    super(Handler, self).__init__(*args)
-
-  def do_GET(self):
-    if self.path != get_path:
-      self.send_error(404)
-    else:
-      global already_gotten
-      if already_gotten:
-        self.send_error(403, "WARNING SIRENS: SOMEONE GOT THERE BEFORE YOU")
+def ask_for_POST(get_path, post_path, html_to_serve_on_get_path, port_number = 9999):
+  """
+  Runs a local web server and browser UI; returns when the browser
+  posts to post_path and returns the contents of the POST body.
+  """
+  already_gotten = False
+  already_posted = False
+  response_data = None
+  class Handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+      if self.path != get_path:
+        self.send_error(404)
       else:
-        already_gotten = True
+        nonlocal already_gotten
+        if already_gotten:
+          self.send_error(403, "WARNING SIRENS: SOMEONE GOT THERE BEFORE YOU")
+        else:
+          already_gotten = True
+          self.send_response(200)
+          self.send_header('Content-Type', 'text/html; charset=utf-8')
+          self.end_headers()
+          self.wfile.write(html_to_serve_on_get_path.encode('utf-8'))
+
+    def do_POST(self):
+      if self.path != post_path:
+        self.send_error(404)
+      else:
+        # Hmm this seems unreliable but I don't know if there's
+        # a packaged solution for http.server
+        length = int(self.headers['Content-Length'])
+        nonlocal response_data
+        response_data = self.rfile.read(length)
+        nonlocal already_posted
+        already_posted = True
         self.send_response(200)
-        self.send_header('Content-Type', 'text/html; charset=utf-8')
+        self.send_header('Content-Type', 'text/plain')
         self.end_headers()
-        self.wfile.write(self.html)
-        #shutil.copyfileobj(open('site/index.html', 'rb'), self.wfile)
-        #self.wfile.write("<!DOCTYPE html><html><head><body><p>Hello World".encode())
-
-  def do_POST(self):
-    if self.path != post_path:
-      self.send_error(404)
-    else:
-      #self.send_response(204)
-      #self.end_headers()
-      #posted = self.rfile.read()
-      #hmm this seems unreliable but I don't know if there's a packaged solution
-      # for http.server
-      length = int(self.headers['Content-Length'])
-      post_data = urllib.parse.parse_qs(self.rfile.read(length).decode('utf-8'))
-      mutating_swizzle(post_data)
-      global already_posted
-      already_posted = True
-      self.send_response(200)
-      self.send_header('Content-Type', 'text/plain')
-      self.end_headers()
-      self.wfile.write(b'Success.')
+        self.wfile.write(b'Successfully posted.')
+  server = HTTPServer(('', port_number), Handler)
+  #TODO race condition? or does the HTTPServer constructor open the port?
+  webbrowser.open('http://localhost:{}{}'.format(port_number, get_path))
+  while not already_posted: server.handle_request()
+  return response_data
 
 
-#<p class="context"><span class="lineno">index.html:43</span><span
-#class="contextcontent">&lt;link  rel="stylesheet" href="<a href="javascript:;"
-#class="modify"><span class="orig">style.css<span class="toggle on">?rr</span></span></a>" /></span></p>
-
-fancythis = b'''
-src="foo.css"
-href="what.html" d=what.html 'what.html'  what.html?rr
-'''
 
 queryandfragment_re = re.compile(r'[?#].*')
 nonrelativeurl_re = re.compile(urlregexps.urlwithdomain+'|'+urlregexps.domainrelativeurl)
@@ -219,7 +206,7 @@ def looks_textual(file_bytes):
   return not any(c in file_bytes for c in
      b'\x00\x01\x02\x03\x04\x05\x06\x07\x08\x0E\x0F\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1A\x1B\x1C\x1D\x1E\x1F')
 
-def swizzle(within_dir):
+def swizzle(within_dir, post_path):
   """
   If abc and a=c and foo.html and index.html exist, offer:
   
@@ -322,21 +309,8 @@ $(function() {
       htmlbuilder.append(fhtml)
       #htmlbuilder.append(swizzle_file(f, join(within_dir, f), filecontents, existence))
   htmlbuilder.append('''</form></body></html>''')
-  return (''.join(htmlbuilder).encode(), transformations)
+  return (''.join(htmlbuilder), transformations)
 
-
-was_html=('''<!DOCTYPE html>
-<meta charset="utf-8">
-<title>HITEST</title>
-<form method="post" action="'''+html.escape(post_path)+'''">
-<button>SUbMiT</button>
-</form>
-''').encode()
-
-#html = swizzle_file('bar.html', fancythis)
-#made testsite so mutation doesnt bug me all up
-site = 'testsite/starplay/v2'
-htmlf, transformations = swizzle(site)
 
 def mutating_swizzle_file(f, linereplacements):
   lines = utils.read_file_text(f).splitlines(True)
@@ -357,13 +331,13 @@ def mutating_swizzle_file(f, linereplacements):
     
 # buttons 'select all' / 'deselect all' / 'unrr all'
     
-def mutating_swizzle(post_data):
+def mutating_swizzle(possible_transformations, posted):
   mutate = []
-  for name in post_data:
-    if name not in transformations:
+  for name in posted:
+    if name not in possible_transformations:
       print("Bad post data key: {}".format(name))
       return
-    mutate.append(transformations[name])
+    mutate.append(possible_transformations[name])
   # if we mutate from last to first then the line/column numbers won't shift around
   mutate_files = {}
   for f, line, col, was, willbe in mutate:
@@ -371,12 +345,21 @@ def mutating_swizzle(post_data):
   for f, linereplacements in mutate_files.items():
     mutating_swizzle_file(f, linereplacements)
 
-#try:
-server = HTTPServer(('', PORT_NUMBER), lambda *args: Handler(htmlf, *args))
-#TODO race condition? or does the HTTPServer constructor open the port?
-webbrowser.open('http://localhost:{}{}'.format(PORT_NUMBER, get_path))
-while not already_posted: server.handle_request()
-print("done!")
+def main():
+  #made testsite so mutation doesnt bug me all up
+  site = 'testsite/starplay/v2'
+  get_path = '/'+create_secrets.alnum_secret()
+  post_path = '/'+create_secrets.alnum_secret()
+  htmlf, possible_transformations = swizzle(site, post_path)
+  print(get_path)
+  print(post_path)
+  response_data = ask_for_POST(get_path, post_path, htmlf)
+  posted = urllib.parse.parse_qs(response_data.decode('utf-8'))
+  mutating_swizzle(possible_transformations, posted)
+  print("done!")
+
+if __name__ == '__main__':
+  main()
 
 
 
