@@ -1,6 +1,6 @@
 
 import os, os.path, subprocess, re, base64, hashlib, mimetypes, copy
-from os.path import join, dirname, normpath
+from os.path import join, dirname, normpath, exists
 from urllib.parse import urljoin, urldefrag, urlparse
 
 import buildsystem, utils
@@ -159,6 +159,19 @@ def custom_site_preprocessing(do):
       else:
         for _ in do([src], [dest]):
           autohead(src, dest, url)
+    elif re.search(r'\.(scss|sass)$', srcf):
+      f = re.sub(r'\.(scss|sass)$', '.css', srcf)
+      # don't disturb precompiled scss:
+      if exists(join('src/site', f)):
+        f = None
+      else:
+        f_map = f+'.map'
+        dest = join('site', f)
+        #I don't have a scss dependency chaser, so I can't easily give
+        #the correct set of dependencies to do(), but sassc is pretty fast
+        #so I'll run it every time.
+        # Creates both f and f_map:
+        cmd(['sassc', '-g', '-o', dest, src])
     elif re.search(r'\.(txt)$|^t\.gif$|^haddock-presentation-2010/', srcf):
       f = srcf
       route = scheme_and_domain+'/'+f
