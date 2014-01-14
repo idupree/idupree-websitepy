@@ -215,7 +215,7 @@ def run_basic(builds_dir, build_system_sources):
 
 # hmm what about (optionally) cleanly copying source using `git clone`
 
-exclude_files_default_re = re.compile('~$|(^|/)\..*\.swp$|(^|/)(\.git|__pycache__|_darcs|\.svn|\.hg)(/|$)')
+exclude_files_default_re = re.compile('~$|\.(swp|new|kate-swp)$|(^|/)(\.git|__pycache__|_darcs|\.svn|\.hg)(/|$)')
 def exclude_files_default(f): return bool(exclude_files_default_re.search(f))
 def run(srcdir, build_system_sources, builds_dir = None, exclude_src_files = exclude_files_default):
   """
