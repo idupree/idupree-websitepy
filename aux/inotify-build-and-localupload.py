@@ -6,7 +6,8 @@ os.chdir('..')
 
 p = subprocess.Popen(
   ['inotifywait', '-m', '-q', '-r', '.',
-   '-e', 'modify', '-e', 'attrib', '-e', 'move', '-e', 'create', '-e', 'delete'],
+   '-e', 'modify', '-e', 'attrib', '-e', 'move', '-e', 'create', '-e', 'delete',
+   r'--exclude=^\./\.git/|~$|\.(kate-swp|new|swp)$'],
   stdin=subprocess.PIPE,
   stdout=subprocess.PIPE
   )
