@@ -9,18 +9,19 @@ import urlregexps
 import myglob
 import resource_rewriting
 import secrets
+from private_configuration import cdn_resources_path, scheme_and_domain, doindexfrom, butdontindexfrom
 
 cmd = subprocess.check_call
 
 nocdn_resources_path = '/_resources/'
-cdn_resources_path = '//??????????.cloudfront.net/'
+#cdn_resources_path = '//??????????.cloudfront.net/'
 
-scheme_and_domain = 'http://www.idupree.com'
+#scheme_and_domain = 'http://www.idupree.com'
 nocdn_resources_route = scheme_and_domain+nocdn_resources_path
 canonical_resources_route = nocdn_resources_route
 
-doindexfrom = map(lambda r: scheme_and_domain+r, ['/'])
-butdontindexfrom = map(lambda r: scheme_and_domain+r, ['/README'])
+#doindexfrom = map(lambda r: scheme_and_domain+r, ['/'])
+#butdontindexfrom = map(lambda r: scheme_and_domain+r, ['/semiprivate-page'])
 
 # fake_resource_route: prefixed to resource names to give them
 # routes before they are rewritten to the actual resource-route prefix
