@@ -20,8 +20,8 @@ nocdn_resources_path = '/_resources/'
 nocdn_resources_route = scheme_and_domain+nocdn_resources_path
 canonical_resources_route = nocdn_resources_route
 
-#doindexfrom = map(lambda r: scheme_and_domain+r, ['/'])
-#butdontindexfrom = map(lambda r: scheme_and_domain+r, ['/semiprivate-page'])
+#doindexfrom = set(map(lambda r: scheme_and_domain+r, ['/']))
+#butdontindexfrom = set(map(lambda r: scheme_and_domain+r, ['/semiprivate-page']))
 
 # fake_resource_route: prefixed to resource names to give them
 # routes before they are rewritten to the actual resource-route prefix
@@ -266,6 +266,9 @@ def custom_site_preprocessing(do):
       if path in route_metadata:
         result.add(path)
     return result
+  for f in butdontindexfrom:
+    # Double check that butdontindexfrom doesn't have any typoes
+    assert(f in route_metadata)
   routes_robots_should_index = set(utils.make_transitive(
       lambda f: filter(lambda f2: f2 not in butdontindexfrom, find_internal_links(f)),
     True, True)(doindexfrom))
