@@ -231,6 +231,16 @@ def custom_site_preprocessing(do):
   route = scheme_and_domain+'/'+f
   add_route(route, f)
 
+  # It's not super elegant calling the rewriter inside custom processing
+  # rather than after, but it'll do.
+  rewriter = resource_rewriting.ResourceRewriter(
+    files_to_rewrite, site_source_prefix = 'site', do=do)
+
+  nonresource_routes = [route_ for route_ in route_metadata]
+
+  for f in rewriter.recall_all_needed_resources():
+    add_route(fake_resource_route+f, f)
+
   #TODO use do() to make this cached in a file.
   def find_internal_links(route):
     """
@@ -272,13 +282,6 @@ def custom_site_preprocessing(do):
   routes_robots_should_index = set(utils.make_transitive(
       lambda f: filter(lambda f2: f2 not in butdontindexfrom, find_internal_links(f)),
     True, True)(doindexfrom))
-  
-  # It's not super elegant calling the rewriter inside custom processing
-  # rather than after, but it'll do.
-  rewriter = resource_rewriting.ResourceRewriter(
-    files_to_rewrite, site_source_prefix = 'site', do=do)
-
-  nonresource_routes = [route_ for route_ in route_metadata]
 
   # Auto redirect trailing slashes or lack thereof,
   # regardless of whether there were directories involved in
@@ -295,9 +298,6 @@ def custom_site_preprocessing(do):
           route_metadata[dual] = copy.deepcopy(route_metadata[route])
         else:
           add_redirect(301, dual, route)
-
-  for f in rewriter.recall_all_needed_resources():
-    add_route(fake_resource_route+f, f)
 
   for route in route_metadata:
     if urlparse(route).path == '/robots.txt':
