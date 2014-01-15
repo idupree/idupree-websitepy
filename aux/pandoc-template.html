@@ -20,17 +20,17 @@ $endif$
   <![endif]-->
 </head>
 <body>
-<div class="tr_logo"><a class="tr_logo_a" href="/"><img
+$if(no-tr-logo)$$else$<div class="tr_logo"><a class="tr_logo_a" href="/"><img
 src="/nabla.png?rr" alt="∇" width=64 height=64
-/><span class="tr_logo_name">idupree</span></a></div>
-<div id="content">
+/><span class="tr_logo_name">idupree</span></a></div>$endif$
+$if(no-content-div)$$else$<div id="content">$endif$
 $if(title)$
 <h1>$title$</h1>
 $endif$
 $body$
-</div>
-<div class="bc_logo"><a class="bc_logo_a" href="/"><img
+$if(no-content-div)$$else$</div>$endif$
+$if(no-bc-logo)$$else$<div class="bc_logo"><a class="bc_logo_a" href="/"><img
 src="/nabla.png?rr" alt="∇" width=20 height=20
-/> <span class="bc_logo_name">idupree</span></a></div>
+/> <span class="bc_logo_name">idupree</span></a></div>$endif$
 </body>
 </html>
