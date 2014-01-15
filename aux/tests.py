@@ -3,6 +3,8 @@
 import re, traceback, sys, os, collections, urllib.parse
 import asyncio
 
+import private_configuration
+
 # pip3 install --user http-parser
 try:
     from http_parser.parser import HttpParser
@@ -310,7 +312,15 @@ def test_http_response(route, response):
       test('not lengthily cacheable', lambda:test.notre(r'max-age=[0-9]{5,}', resp.headers.get("Cache-Control", '')))
 
     test('noarchive', lambda:test.re(r'noarchive', resp.headers['X-Robots-Tag']))
-    #maybe test some noindex pages too)
+    if re.search(r'^/_resources/style\.[^/]*\.css$', route):
+      # test that a public resource file is not mistakenly specified noindex
+      test('indexable', lambda:test.notre(r'noindex', resp.headers['X-Robots-Tag']))
+    if the_domain+route in private_configuration.doindexfrom:
+      # At minimum these pages should lack noindex
+      test('indexable', lambda:test.notre(r'noindex', resp.headers['X-Robots-Tag']))
+    if the_domain+route in private_configuration.butdontindexfrom:
+      # At minimum these pages should have noindex
+      test('noindex', lambda:test.re(r'noindex', resp.headers['X-Robots-Tag']))
 
     #TODO list types that are inactive instead, for better caution
     if is_active_content_type(resp.headers.get('Content-Type')):
