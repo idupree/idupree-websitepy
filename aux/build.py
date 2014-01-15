@@ -127,9 +127,13 @@ def custom_site_preprocessing(do):
       # links in them will benefit from gzipping.
       assert(file_metadata[f].worth_gzipping)
     if guess_mime_type:
-      mime, content = mimetypes.guess_type(f)
-      if content != None or mime == None:
-        mime = 'application/octet-stream'
+      # mimetypes.guess_type guesses wrong here:
+      if re.search(r'\.(pub)?key\.asc$', f):
+        mime = 'application/pgp-keys'
+      else:
+        mime, content = mimetypes.guess_type(f)
+        if content != None or mime == None:
+          mime = 'application/octet-stream'
       if re.search('^text/|[+/](?:xml|json)$|^application/javascript$', mime):
         mime += '; charset=utf-8'
       file_metadata[f].headers.append(('Content-Type', mime))
@@ -172,7 +176,7 @@ def custom_site_preprocessing(do):
         #so I'll run it every time.
         # Creates both f and f_map:
         cmd(['sassc', '-g', '-o', dest, src])
-    elif re.search(r'\.(txt)$|^t\.gif$|^haddock-presentation-2010/', srcf):
+    elif re.search(r'\.(txt|asc|pdf|tar\.(gz|bz2|xz))$|^t\.gif$|^haddock-presentation-2010/', srcf):
       f = srcf
       route = scheme_and_domain+'/'+f
       dest = join('site', f)
