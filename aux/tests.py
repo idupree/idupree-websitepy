@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-import re, traceback, sys, os, collections, urllib.parse
+import re, traceback, sys, os, collections, urllib.parse, json
 import asyncio
 
 import private_configuration
@@ -335,14 +335,26 @@ def test_http_response(route, response):
         test('has rel=canonical of idupree.com', lambda:test.re(br'''<link rel="canonical" href="http://www\.idupree\.com'''+re.escape(route).encode('utf-8')+br'"\s*/?>', resp.body))
       else:
         test('has no <link rel="canonical">', lambda:test.notre(br'''<link rel="canonical"''', resp.body))
-      #TODO flexible IP/ports for running the validator
-      validate_req = ('''GET /?parser=html5&out=gnu&doc={} HTTP/1.0\r\n\r\n'''
-          .format(urllib.parse.quote('http://127.0.0.1:8080'+route, '')))
-      validation_response = HttpResponse((yield from request('127.0.0.1', 8888, validate_req)))
-      test('HTML5 validator working',
-           lambda:test.eq(200, validation_response.status_code))
-      test('validates as HTML5 (validator.nu checker)',
-           lambda:test.notre(r' warning: | error: ', validation_response.body.decode('utf-8')))
+
+      # Unfortunately, the validator refuses to validate the HTML contents
+      # of pages whose HTTP status is 404.
+      if route in existent_routes:
+        #TODO flexible IP/ports for running the validator
+        validate_req = ('''GET /?parser=html5&out=json&doc={} HTTP/1.0\r\n\r\n'''
+            .format(urllib.parse.quote('http://127.0.0.1:8080'+route, '')))
+        validation_response = HttpResponse((yield from request('127.0.0.1', 8888, validate_req)))
+        test('HTML5 validator working',
+             lambda:test.eq(200, validation_response.status_code))
+        try:
+          validation_response_parsed = json.loads(validation_response.body.decode('utf-8'))
+          messages = validation_response_parsed["messages"]
+          # Assume messages are bad unless we've seen them and decided
+          # they're okay.  The validator mostly only emits messages for
+          # actual problems.
+          test('validates as HTML5 (validator.nu checker)',
+               lambda:test.eq([], messages))
+        except (ValueError, KeyError):
+          test('HTML5 validator working as expected', lambda:test.eq(False, validation_response.body))
     
     if re.search(r'text/css', resp.headers.get('Content-Type', '')):
       test('content-type: text/css; charset=utf-8', lambda:test.eq(resp.headers['Content-Type'], 'text/css; charset=utf-8'))
