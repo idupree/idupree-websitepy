@@ -286,9 +286,10 @@ def test_http_response(route, response):
       if resp.status_code == 200:
         test('has ETag', lambda:test.in_('ETag', resp.headers))
         test('has Content-Length', lambda:test.in_('Content-Length', resp.headers))
-        # TODO allow it if there are other Link: headers also:
-        # search Link: headers for it.
-        test("HTTP Link rel=canonical", lambda:test.eq(resp.headers['Link'], '<http://www.idupree.com{}>; rel="canonical"'.format(route)))
+        if route in nonresource_routes:
+          # TODO allow it if there are other Link: headers also:
+          # search Link: headers for it.
+          test("HTTP Link rel=canonical", lambda:test.eq(resp.headers['Link'], '<http://www.idupree.com{}>; rel="canonical"'.format(route)))
     else:
       # TODO allow it if there are other Link: headers also:
       # search Link: headers for it.
