@@ -335,10 +335,6 @@ def test_http_response(route, response):
         test('has rel=canonical of idupree.com', lambda:test.re(br'''<link rel="canonical" href="http://www\.idupree\.com'''+re.escape(route).encode('utf-8')+br'"\s*/?>', resp.body))
       else:
         test('has no <link rel="canonical">', lambda:test.notre(br'''<link rel="canonical"''', resp.body))
-#    validate_req = '''POST http://127.0.0.1:8888/?parser=html5&out=gnu HTTP/1.1
-#Connection: close{}
-#
-#{}'''.format(resp.headers.get('Content-Type'))
       #TODO flexible IP/ports for running the validator
       validate_req = ('''GET /?parser=html5&out=gnu&doc={} HTTP/1.0\r\n\r\n'''
           .format(urllib.parse.quote('http://127.0.0.1:8080'+route, '')))
