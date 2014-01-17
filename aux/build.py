@@ -103,6 +103,46 @@ def custom_site_preprocessing(do):
       br'\1<link rel="canonical" href="' + canonical_url.encode('utf-8') + b'" />' +
       br'\1<link rel="shortcut icon" href="/favicon.ico?rr" />'
       )
+  def autoobfuscate(src, dest):
+    """
+    AUTO_OBFUSCATE_URL(addr example.com) --> mailto:addr@example.com obfuscated for
+      use in an HTML href="".  Note: one obfuscation, newlines in the address,
+      is not HTML-valid but still works in at least Firefox and Chromium and
+      makes it harder for bots that just preprocess pages with &-decoding and
+      case-folding.
+    AUTO_OBFUSCATE_HTML(addr example.com) --> addr@example.com obfuscated for
+      use in HTML body text.
+
+    The source syntaxes are written without an @ and without mentioning the word "mail"
+    in the hopes that if the source document is visible to the Web, or the replacement
+    fails to work for some reason, it will still be difficult to automatically harvest
+    the email address from the source.
+    """
+
+    # Percent encoding: not much use: https://code.google.com/p/chromium/issues/detail?id=335322
+    # (Firefox (26) is fine, Chromium (31) not)
+    #def obf_percent_encode_char(c):
+    #  return b'%'+
+    def obf_html_encode_char(c):
+      return b'&#'+str(ord(c)).zfill(4).encode()+b';'
+    def obf1(match):
+      return (
+        re.sub(br'(.)$', lambda m: b'\n\n'+obf_html_encode_char(m.group(1))+b'\n', match.group(1))+
+        b'&#0064;\n\n'+
+        re.sub(br'(.)\.(.)',
+          lambda m: b'\n'+obf_html_encode_char(m.group(1))+b'&#0046;\n'+obf_html_encode_char(m.group(2))+b'\n',
+          match.group(2)))
+    def mailto_obf(match):
+      return b'&#0109;aI&#x4c;tO&#0058;\n'+obf1(match)
+    def html_obf(match):
+      return re.sub(br'\n', b'<span\n></span\n>', obf1(match))
+    utils.file_re_sub(src, dest,
+      br'\bAUTO_OBFUSCATE_URL\(([^() \t\r\n]*) ([^() \t\r\n]*)\)',
+      mailto_obf)
+    utils.file_re_sub(dest, dest,
+      br'\bAUTO_OBFUSCATE_HTML\(([^() \t\r\n]*) ([^() \t\r\n]*)\)',
+      html_obf)
+
 
   def add_file(f, guess_mime_type = True):
     """
@@ -161,9 +201,11 @@ def custom_site_preprocessing(do):
         for [_, templ], [_] in do([src, 'src/aux/pandoc-template.html'], [dest]):
           cmd(['pandoc', '--template='+templ, '-t', 'html5', '-o', dest, src])
           autohead(dest, dest, url)
+          autoobfuscate(dest, dest)
       else:
         for _ in do([src], [dest]):
           autohead(src, dest, url)
+          autoobfuscate(dest, dest)
     elif re.search(r'\.(scss|sass)$', srcf):
       f = re.sub(r'\.(scss|sass)$', '.css', srcf)
       # don't disturb precompiled scss:
