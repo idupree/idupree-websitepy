@@ -351,8 +351,19 @@ def test_http_response(route, response):
           # Assume messages are bad unless we've seen them and decided
           # they're okay.  The validator mostly only emits messages for
           # actual problems.
+          def message_is_alright(message):
+            # This validation error is deliberate in an attempt to reduce
+            # spambot email harvesting.  The nonconformance appears not to
+            # cause issues in common browsers.
+            return None != re.search(
+              r'^Bad value “maILtO:.*” for attribute “href” on element “a”: Control character in path component\.$',
+              message["message"],
+              re.DOTALL)
+          def message_indicates_a_bad_thing(message):
+            return not message_is_alright(message)
+          bad_messages = tuple(filter(message_indicates_a_bad_thing, messages))
           test('validates as HTML5 (validator.nu checker)',
-               lambda:test.eq([], messages))
+               lambda:test.eq((), bad_messages))
         except (ValueError, KeyError):
           test('HTML5 validator working as expected', lambda:test.eq(False, validation_response.body))
     
