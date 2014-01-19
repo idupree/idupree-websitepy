@@ -439,6 +439,6 @@ def do_tests(ip, port):
       print(k+': '+str(v))
 
 
-c = do_tests('127.0.0.1', 8080)
+c = do_tests('127.0.0.1', 80)
 loop.run_until_complete(c)
 
