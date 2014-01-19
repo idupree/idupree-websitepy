@@ -340,8 +340,11 @@ def test_http_response(ip, port, route, response):
       # Unfortunately, the validator refuses to validate the HTML contents
       # of pages whose HTTP status is 404.
       if route in existent_routes:
+        # The validator is slightly unhappy about redundant ":80" in URLs
+        tested_page_path = ('http://{}:{}{}'.format(ip, port, route) if port != 80 else
+                            'http://{}{}'.format(ip, route))
         validate_req = ('''GET /?parser=html5&out=json&doc={} HTTP/1.0\r\n\r\n'''
-            .format(urllib.parse.quote('http://{}:{}{}'.format(ip, port, route), '')))
+            .format(urllib.parse.quote(tested_page_path, '')))
         #TODO flexible IP/ports for running the validator
         validation_response = HttpResponse((yield from request('127.0.0.1', 8888, validate_req)))
         test('HTML5 validator working',
