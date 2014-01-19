@@ -270,7 +270,7 @@ def is_active_content_type(t):
   return t and re.search(r'text/html|application/xhtml+xml|image/svg+xml', t)
 
 @asyncio.coroutine
-def test_http_response(route, response):
+def test_http_response(ip, port, route, response):
     resp = HttpResponse(response)
     results = []
     test = Test(route, lambda p,d: results.append((p,d)))
@@ -340,9 +340,9 @@ def test_http_response(route, response):
       # Unfortunately, the validator refuses to validate the HTML contents
       # of pages whose HTTP status is 404.
       if route in existent_routes:
-        #TODO flexible IP/ports for running the validator
         validate_req = ('''GET /?parser=html5&out=json&doc={} HTTP/1.0\r\n\r\n'''
-            .format(urllib.parse.quote('http://127.0.0.1:8080'+route, '')))
+            .format(urllib.parse.quote('http://{}:{}{}'.format(ip, port, route), '')))
+        #TODO flexible IP/ports for running the validator
         validation_response = HttpResponse((yield from request('127.0.0.1', 8888, validate_req)))
         test('HTML5 validator working',
              lambda:test.eq(200, validation_response.status_code))
@@ -418,7 +418,7 @@ def do_tests(ip, port):
 
   @asyncio.coroutine
   def test_route(route):
-    return (yield from test_http_response(route, (yield from get(route))))
+    return (yield from test_http_response(ip, port, route, (yield from get(route))))
 
   test_results = map(asyncio.Task, map(test_route, tested_routes))
 
