@@ -2,7 +2,8 @@
 
 # Run as root on an aspiring server.
 #
-# Given an Ubuntu installation, sets it up as an OpenResty server
+# Given an Ubuntu installation (or Debian, or any distro on which you install
+# OpenResty's build deps yourself), sets it up as an OpenResty server
 # in a particular way.  OpenResty is built as the unprivileged user
 # 'openrestybuild' and run as the unprivileged user 'openrestyuser'.
 # Log files are currently unmanaged and go in /home/openrestyuser/prefix/ .
@@ -51,16 +52,25 @@
 
 
 set -eux
-# ordinary users don't have sbin in PATH by default, so fix that:
-sed -Ei 's@^(ENV_(SU)?PATH[ \t]+PATH=).*$@\1/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin@' /etc/login.defs
+
 # add 'universe' to Ubuntu repositories
 # not necessary on DigitalOcean 12.04 and may need to be adapted for places where it is needed
 # sed -Ei 's@^(deb http://(archive|security)\.ubuntu\.com/ubuntu '"$(lsb_release -sc)"'(|-updates|-security) main)$@\1 universe@' /etc/apt/sources.list
-apt-get update
-apt-get upgrade
-apt-get install -y wget gnupg-curl build-essential libssl-dev libpcre3-dev authbind
+if which apt-get; then
+  apt-get update
+  apt-get upgrade
+  apt-get install -y wget gnupg-curl build-essential libssl-dev libpcre3-dev authbind
+fi
+
 useradd -m openrestybuild || true
 useradd -m openrestyuser || true
+
+# ordinary users sometimes don't have sbin in PATH by default, so fix that.
+# (For some reason nginx/openresty's build requires it even when it is
+#  never once built, installed, or ran as root.)
+if which ldconfig && su - openrestybuild -c '! which ldconfig'; then
+  sed -Ei 's@^(ENV_(SU)?PATH[ \t]+PATH=).*$@\1/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin@' /etc/login.defs
+fi
 
 chmod 750 /home/openrestyuser
 su - openrestyuser -c 'mkdir -p /home/openrestyuser/prefix/logs'
