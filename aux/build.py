@@ -303,6 +303,7 @@ def custom_site_preprocessing(do):
   for f in rewriter.recall_all_needed_resources():
     add_route(fake_resource_route+f, f)
 
+  broken_link_found = False
   #TODO use do() to make this cached in a file.
   def find_internal_links(route):
     """
@@ -323,7 +324,13 @@ def custom_site_preprocessing(do):
     contents = utils.read_file_binary(join('site', f))
     for href in re.finditer(
         br'(?<!'+urlregexps.urlbyte+br')(?:'+
-        br'''href=(?P<quote>["']?)(?P<url1>'''+urlregexps.urlbyte+br'''+)(?<!\?rr)(?P=quote)'''+
+        # Things that look like href= that are not a link to a page:
+        # example text that talks about hrefs; <base href="...">.
+        # Only <a>, <area> and possibly <link> elements can have
+        # hrefs we're interested in.  By excluding not-actually-links,
+        # we can have broken-link detection without false positives
+        # (or few enough false positives that it's trivial to work around).
+        br'''<(?:[Aa]|[Aa][Rr][Ee][Aa]|[Ll][Ii][Nn][Kk])\s[^<>]*href=(?P<quote>["']?)(?P<url1>'''+urlregexps.urlbyte+br'''+)(?<!\?rr)(?P=quote)'''+
         br'''|(?P<url2>'''+urlregexps.urlbyte+br'''+)\?rr'''+
         br')(?!'+urlregexps.urlbyte+br')'
         ,
@@ -337,6 +344,11 @@ def custom_site_preprocessing(do):
         path = urldefrag(urljoin(route, ref))[0]
       if path in route_metadata:
         result.add(path)
+      else:
+        if path[:len(scheme_and_domain)] == scheme_and_domain:
+          print(route, 'links to nonexistent', ref)
+          nonlocal broken_link_found
+          broken_link_found = True
     return result
   for f in butdontindexfrom:
     # Double check that butdontindexfrom doesn't have any typoes
@@ -344,6 +356,8 @@ def custom_site_preprocessing(do):
   routes_robots_should_index = set(utils.make_transitive(
       lambda f: filter(lambda f2: f2 not in butdontindexfrom, find_internal_links(f)),
     True, True)(doindexfrom))
+  if broken_link_found:
+    exit(1)
 
   # Auto redirect trailing slashes or lack thereof,
   # regardless of whether there were directories involved in
