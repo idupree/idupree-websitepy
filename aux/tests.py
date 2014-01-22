@@ -313,7 +313,7 @@ def test_http_response(ip, port, route, response):
       test('not lengthily cacheable', lambda:test.notre(r'max-age=[0-9]{5,}', resp.headers.get("Cache-Control", '')))
 
     test('noarchive', lambda:test.re(r'noarchive', resp.headers['X-Robots-Tag']))
-    if re.search(r'^/_resources/style\.[^/]*\.css$', route):
+    if re.search(r'^/_resources/style\.[^/]*\.css$|^/$|^/README$|^/pgp$', route):
       # test that a public resource file is not mistakenly specified noindex
       test('indexable', lambda:test.notre(r'noindex', resp.headers['X-Robots-Tag']))
     if the_domain+route in private_configuration.doindexfrom:
