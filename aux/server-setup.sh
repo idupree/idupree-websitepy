@@ -88,6 +88,7 @@ su - openrestybuild -c "cd ${_version} && ./configure ${_flags} --prefix=/home/o
 su - openrestybuild -c "cd ${_version} && make -j2"
 su - openrestybuild -c "rm -rf /home/openrestybuild/inst-tmp2 /home/openrestybuild/inst-tmp1"
 su - openrestybuild -c "cd ${_version} && make install DESTDIR=/home/openrestybuild/inst-tmp1"
+su - openrestybuild -c "rm -rf ${_version}"
 # atomic directory swap doesn't exist
 # (unless/until this happens: https://lwn.net/Articles/569134/ , https://lkml.org/lkml/2014/1/8/650 )
 su - openrestybuild -c "mv /home/openrestybuild/inst /home/openrestybuild/inst-tmp2 || true"
