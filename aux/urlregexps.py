@@ -16,8 +16,11 @@ urlchar_sans_single_quote = r'[^'+nonurl_charset+r"']"
 urlchar_sans_parentheses = r'[^'+nonurl_charset+r'()]'
 schemechar = r"""[ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789\-+.]"""
 # These are to be applied to strings that already match urlchar* :
-urlwithdomain = r'^//|^' + schemechar + r'+:'
+absoluteurl = r'^' + schemechar + r'+:'
+protocolrelativeurl = r'^//'
 domainrelativeurl = r'^/$|^/[^/]'
+urlwithdomain = r'^//|^' + schemechar + r'+:'
+urlschemeanddomain = r'^(' + schemechar + r'+:)?//[^/]*'
 samepageurl = r'^#|^$'
 # clearlydirectoryurl: path ends in any of / . ..
 clearlydirectoryurl = r'^[^?#]*(?:/|(^|/)\.\.?)(?:[?#]|$)'

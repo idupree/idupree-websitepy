@@ -57,10 +57,27 @@ class RouteInfo(object):
   file: 'site/'-relative path to a file containing the HTTP body
     for responding to this request, or None for no body
   worth_gzipping: whether to Vary:Accept-Encoding this
+  http_redirect_to: a (possibly relative) URL.  Requires status 3xx.
+    This is used instead of adding a Location: header because Location:
+    can't be a relative URL in older standards (RFC 2616: HTTP 1.1)
+    and is partly broken in a few settings[1] although new
+    standards say it can be relative[2].
+    Being relative is helpful for testing locally and
+    for redirecting same-protocol (http vs https).
+    [1] support is inconsistent in IE or some server setups?
+        https://stackoverflow.com/questions/6948128/ie-doesnt-follow-redirect-gives-internet-explorer-cannot-display-the-webpage
+        https://stackoverflow.com/questions/4096435/internet-explorer-not-following-relative-redirect-urls-across-domains
+    [2] https://en.wikipedia.org/wiki/HTTP_location
+        https://webmasters.stackexchange.com/questions/31274/what-are-the-consequences-for-using-relative-location-headers
+        https://stackoverflow.com/questions/8250259/is-a-302-redirect-to-relative-url-valid-or-invalid
+        http://fetch.spec.whatwg.org/
   """
-  def __init__(self, status = None, headers = None, file = None, worth_gzipping = None):
+  def __init__(self, status = None, headers = None,
+               http_redirect_to = None,
+               file = None, worth_gzipping = None):
     self.status = status
     self.headers = headers if headers != None else []
+    self.http_redirect_to = http_redirect_to
     self.file = file
     self.worth_gzipping = worth_gzipping
 #and have a base one provided by f's that is copy+added to by specific routes
@@ -179,11 +196,14 @@ def custom_site_preprocessing(do):
         mime += '; charset=utf-8'
       file_metadata[f].headers.append(('Content-Type', mime))
 
-  def add_redirect(status, from_route, to_route):
+  def add_redirect(status, from_route, to):
     add_route(from_route)
     route_metadata[from_route].status = status
-    route_metadata[from_route].headers.append((
-        'Location', urljoin(from_route, to_route)))
+    route_metadata[from_route].http_redirect_to = to
+    # Alternate implementation from http_redirect_to
+    # that always redirects only to the canonical domain:
+    #route_metadata[from_route].headers.append((
+    #    'Location', urljoin(from_route, to)))
 
   for srcf in files_to_consider:
     src = join('src/site', srcf)
@@ -229,7 +249,7 @@ def custom_site_preprocessing(do):
       extless_path = re.sub(r'\.(3[0-9][0-9])$', '', srcf)
       # Hmm should 'index.301' be a thing? or '.301'? or just use dirname.301
       route = scheme_and_domain+'/'+extless_path
-      # Alas, this code currently can't support redirecting to a resource.
+      # Alas, this code currently can't support redirecting to a resource. TODO
       add_redirect(int(srcf[-3:]), route, utils.read_file_text(src).strip())
       # Don't add the route again below
       route = None
@@ -329,17 +349,20 @@ def custom_site_preprocessing(do):
   # regardless of whether there were directories involved in
   # creating the routes.
   for route in nonresource_routes:
-    if len(route) > 1:
-      if route[-1] == '/':
+    domainless_route = re.sub(urlregexps.urlschemeanddomain, '', route)
+    if len(domainless_route) > 1:
+      if domainless_route[-1] == '/':
         dual = route[:-1]
       else:
         dual = route+'/'
+      domainless_dual = re.sub(urlregexps.urlschemeanddomain, '', dual)
       if dual not in route_metadata:
         if route_metadata[route].status == 301:
           # Avoid pointless double redirect where applicable
           route_metadata[dual] = copy.deepcopy(route_metadata[route])
+          route_metadata[dual].http_redirect_to = urljoin(domainless_route, route_metadata[route].http_redirect_to)
         else:
-          add_redirect(301, dual, route)
+          add_redirect(301, dual, domainless_route)
 
   for route in route_metadata:
     if urlparse(route).path == '/robots.txt':
@@ -508,13 +531,41 @@ def nginx_openresty(do, rewriter, route_metadata):
   def make_rule(route):
     """f can be none, in which case there is no HTTP body"""
     gzippable = route_metadata[route].worth_gzipping
+    http_redirect_to = route_metadata[route].http_redirect_to
     headers = copy.deepcopy(route_metadata[route].headers)
     f = route_metadata[route].file
     status = route_metadata[route].status
     if gzippable:
       headers.append(("Vary", "Accept-Encoding"))
-    etag_nogz = make_etag(status, headers, f)
-    etag_gz = make_etag(status, headers + [("Content-Encoding", "gzip")], f)
+    # estimated_location_headers: more relative than we will serve,
+    # because some client or proxy code doesn't like relative Location headers.
+    # (Relative Location headers used to be nonstandard.)
+    estimated_location_headers = ([("Location", http_redirect_to)] if http_redirect_to != None else [])
+    etag_nogz = make_etag(status, estimated_location_headers + headers, f)
+    etag_gz = make_etag(status, estimated_location_headers + headers + [("Content-Encoding", "gzip")], f)
+    def make_headers(indent):
+      """
+      adds nginx code to print all the non Content-Encoding:gzip headers
+      """
+      # most headers:
+      for k, v in headers:
+        rule.append(indent+"""ngx.header[{k}]={v}""".format(k=repr(k), v=repr(v)))
+      # Location header, if any:
+      if http_redirect_to != None:
+        # ngx.redirect() doesn't support path-relative or protocol-relative
+        # redirect destinations, and forces its own default response body,
+        # so I'm not using it.
+        if re.search(urlregexps.absoluteurl, http_redirect_to):
+          expr = repr(http_redirect_to)
+        elif re.search(urlregexps.protocolrelativeurl, http_redirect_to):
+          expr = """ngx.var.scheme..{}""".format(repr(':'+http_redirect_to))
+        else:
+          domainrelative_redirect_to = re.sub(urlregexps.urlschemeanddomain, '',
+                                              urljoin(route, http_redirect_to))
+          port = """((({http = '80', https = '443'})[ngx.var.scheme] ~= ngx.var.server_port) and (':'..ngx.var.server_port) or '')"""
+          expr = ("""ngx.var.scheme..'://'..ngx.var.host..{}..{}"""
+                   .format(port, repr(domainrelative_redirect_to)))
+        rule.append(indent+"""ngx.header[{k}]={v}""".format(k=repr('Location'), v=expr))
     # Python and Lua string syntaxes are similar enough that we can use
     # Python repr() to make Lua strings. 
     rule = ["function()"]
@@ -526,8 +577,7 @@ def nginx_openresty(do, rewriter, route_metadata):
       contents = utils.read_file_binary(
         nginx_pagecontent_dir_build+recall_nginx_pagecontent_path(f))
       rule.append("""  ngx.status={status}""".format(status=status))
-      for k, v in headers:
-        rule.append("""  ngx.header[{k}]={v}""".format(k=repr(k), v=repr(v)))
+      make_headers('  ')
       rule.append("  ngx.print({})".format(repr(contents)[1:]))
     else:
       if f != None:
@@ -548,8 +598,7 @@ def nginx_openresty(do, rewriter, route_metadata):
       rule.append("""    ngx.status={status}""".format(status=status))
       if gzippable:
         rule.append("""    if gzip then ngx.header['Content-Encoding']='gzip' end""")
-      for k, v in headers:
-        rule.append("""    ngx.header[{k}]={v}""".format(k=repr(k), v=repr(v)))
+      make_headers('    ')
       if f != None:
         rule.append("""    ngx.exec(fpath)""")
         rule.append("""  end""")
