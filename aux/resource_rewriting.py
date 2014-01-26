@@ -218,7 +218,7 @@ class ResourceRewriter(object):
 
 
 def serialize_path_set(paths):
-  assert(not any(re.search(r'\n', p) for p in paths))
+  assert(not any(re.search(r'[\r\n]', p) for p in paths))
   return '\n'.join(sorted(set(paths)))
 
 def deserialize_paths(text):
