@@ -96,17 +96,18 @@ class ResourceRewriter(object):
         io['w'](dest, serialize_path_set(direct_deps))
       self._referenced_resource_files.update(self.recall_direct_deps(f))
       referenced_and_rewritable_files.update(self.recall_direct_deps(f))
+    for f in self._referenced_resource_files - rewritable_files:
+      for [src], [dest] in do([join(site_source_prefix, f)], [self._direct_deps_f(f)]):
+        io['w'](dest, serialize_path_set(set()))
     self._referenced_resource_files = frozenset(self._referenced_resource_files)
     referenced_and_rewritable_files = frozenset(referenced_and_rewritable_files)
     for f in referenced_and_rewritable_files:
       for [src], [dest] in do([join(site_source_prefix, f)], [self._hash_f(f)]):
         io['wb'](dest, utils.sha384file(src).digest())
-    for f in rewritable_files:
+    for f in referenced_and_rewritable_files:
       # todo it is possible to do more work-sharing than this for more efficiency
       transitive_deps = set(utils.make_transitive(self.recall_direct_deps)(f))
-      # todo would it make sense to depend on the nonexistence of a file?
-      # luckily such nonexistence is pretty much only accidental here
-      for _, [dest] in do(filter(exists, [self._direct_deps_f(path) for path in {f} | transitive_deps]),
+      for _, [dest] in do([self._direct_deps_f(path) for path in {f} | transitive_deps],
                           [self._transitive_deps_f(f)]):
         io['w'](dest, serialize_path_set(transitive_deps))
     for f in referenced_and_rewritable_files:
@@ -137,12 +138,10 @@ class ResourceRewriter(object):
 
   def recall_direct_deps(self, f):
     """do() wise, this depends only on f."""
-    try: return deserialize_paths(self._io['r'](self._direct_deps_f(f)))
-    except (FileNotFoundError, KeyError): return []
+    return deserialize_paths(self._io['r'](self._direct_deps_f(f)))
   def recall_transitive_deps(self, f):
     """do() wise, this depends on f and all its rewritable transitive dependencies."""
-    try: return deserialize_paths(self._io['r'](self._transitive_deps_f(f)))
-    except (FileNotFoundError, KeyError): return []
+    return deserialize_paths(self._io['r'](self._transitive_deps_f(f)))
   def recall_transitive_deps_including_self(self, f):
     """do() wise, this depends on f and all its rewritable transitive dependencies."""
     return sorted(set(self.recall_transitive_deps(f)) | {f})
