@@ -40,7 +40,7 @@ def _set_mtime(fpath, mtime_ns):
   utime(fpath, ns=(mtime_ns, mtime_ns))
 def _mtime_opt(fpath):
   try: return _mtime(fpath)
-  except FileNotFoundError: return None
+  except (FileNotFoundError, NotADirectoryError): return None
 
 def _parent_dirs(fpath):
   while fpath != '' and fpath != dirname(fpath):
