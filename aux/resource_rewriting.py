@@ -88,14 +88,9 @@ class ResourceRewriter(object):
     self._rr_cache_dir = rr_cache_dir
     self._rr_ref_re = rr_ref_re
     self._rr_path_rewriter = rr_path_rewriter
-    direct_deps_dir = self._direct_deps_dir = join(rr_cache_dir, 'direct-deps')
-    transitive_deps_dir = self._transitive_deps_dir = join(rr_cache_dir, 'transitive-deps')
-    hash_dir = self._hash_dir = join(rr_cache_dir, 'hash')
-    hash_incl_deps_dir = self._hash_incl_deps_dir = join(rr_cache_dir, 'hash-incl-deps')
-    rewritten_resource_name_dir = self._rewritten_resource_name_dir = join(rr_cache_dir, 'rewritten-resource-name')
     referenced_and_rewritable_files = set(rewritable_files)
     for f in rewritable_files:
-      for [src], [dest] in do([join(site_source_prefix, f)], [join(direct_deps_dir, f)]):
+      for [src], [dest] in do([join(site_source_prefix, f)], [self._direct_deps_f(f)]):
         direct_deps = [relpath(dd, site_source_prefix) for dd in
                        direct_rr_deps_of_file(rr_ref_re, src, site_source_prefix)]
         io['w'](dest, serialize_path_set(direct_deps))
@@ -104,36 +99,49 @@ class ResourceRewriter(object):
     self._referenced_resource_files = frozenset(self._referenced_resource_files)
     referenced_and_rewritable_files = frozenset(referenced_and_rewritable_files)
     for f in referenced_and_rewritable_files:
-      for [src], [dest] in do([join(site_source_prefix, f)], [join(hash_dir, f)]):
+      for [src], [dest] in do([join(site_source_prefix, f)], [self._hash_f(f)]):
         io['wb'](dest, utils.sha384file(src).digest())
     for f in rewritable_files:
       # todo it is possible to do more work-sharing than this for more efficiency
       transitive_deps = set(utils.make_transitive(self.recall_direct_deps)(f))
       # todo would it make sense to depend on the nonexistence of a file?
       # luckily such nonexistence is pretty much only accidental here
-      for _, [dest] in do(filter(exists, [join(direct_deps_dir, path) for path in {f} | transitive_deps]),
-                          [join(transitive_deps_dir, f)]):
+      for _, [dest] in do(filter(exists, [self._direct_deps_f(path) for path in {f} | transitive_deps]),
+                          [self._transitive_deps_f(f)]):
         io['w'](dest, serialize_path_set(transitive_deps))
     for f in referenced_and_rewritable_files:
       incl_deps = self.recall_transitive_deps_including_self(f)
-      incl_dep_sha_files = [join(hash_dir, dep) for dep in incl_deps]
-      for _, [dest] in do(incl_dep_sha_files, [join(hash_incl_deps_dir, f)]):
+      incl_dep_sha_files = [self._hash_f(dep) for dep in incl_deps]
+      for _, [dest] in do(incl_dep_sha_files, [self._hash_incl_deps_f(f)]):
         incl_dep_shas = ([secrets.rr_hash_random_bytes] +
             [io['rb'](dep) for dep in incl_dep_sha_files])
         incl_deps_sha = hashlib.sha384(b''.join(incl_dep_shas)).digest()
         io['wb'](dest, incl_deps_sha)
     for f in referenced_and_rewritable_files:
-      for [src], [dest] in do([join(hash_incl_deps_dir, f)], [join(rewritten_resource_name_dir, f)]):
+      for [src], [dest] in do([self._hash_incl_deps_f(f)],
+                              [self._rewritten_resource_name_f(f)]):
         hashdigest = io['rb'](src)
         io['w'](dest, rr_path_rewriter(f, hashdigest))
     #[print(x) for x in sorted(store.items())]
+
+  def _direct_deps_f(self, f):
+    return join(self._rr_cache_dir, 'direct-deps', f)+'.deps'
+  def _transitive_deps_f(self, f):
+    return join(self._rr_cache_dir, 'transitive-deps', f)+'.deps'
+  def _hash_f(self, f):
+    return join(self._rr_cache_dir, 'hash', f)+'.hash'
+  def _hash_incl_deps_f(self, f):
+    return join(self._rr_cache_dir, 'hash-incl-deps', f)+'.hash'
+  def _rewritten_resource_name_f(self, f):
+    return join(self._rr_cache_dir, 'rewritten-resource-name', f)+'.name'
+
   def recall_direct_deps(self, f):
     """do() wise, this depends only on f."""
-    try: return deserialize_paths(self._io['r'](join(self._direct_deps_dir, f)))
+    try: return deserialize_paths(self._io['r'](self._direct_deps_f(f)))
     except (FileNotFoundError, KeyError): return []
   def recall_transitive_deps(self, f):
     """do() wise, this depends on f and all its rewritable transitive dependencies."""
-    try: return deserialize_paths(self._io['r'](join(self._transitive_deps_dir, f)))
+    try: return deserialize_paths(self._io['r'](self._transitive_deps_f(f)))
     except (FileNotFoundError, KeyError): return []
   def recall_transitive_deps_including_self(self, f):
     """do() wise, this depends on f and all its rewritable transitive dependencies."""
@@ -141,14 +149,14 @@ class ResourceRewriter(object):
 
   def recall_hash(self, f):
     """do() wise, this depends only on f."""
-    return self._io['rb'](join(self._hash_dir, f))
+    return self._io['rb'](self._hash_f(f))
   def recall_transitive_hash(self, f):
     """do() wise, this depends on f and all its rewritable transitive dependencies."""
-    return self._io['rb'](join(self._hash_incl_deps_dir, f))
+    return self._io['rb'](self._hash_incl_deps_f(f))
 
   def recall_rewritten_resource_name(self, f):
     """do() wise, this depends on f and all its rewritable transitive dependencies."""
-    return self._io['r'](join(self._rewritten_resource_name_dir, f))
+    return self._io['r'](self._rewritten_resource_name_f(f))
 
   #def recall_all_rewritable_files(self):
   def recall_all_needed_resources(self):
