@@ -157,11 +157,19 @@ class ResourceRewriter(object):
     """do() wise, this depends on f and all its rewritable transitive dependencies."""
     return self._io['r'](self._rewritten_resource_name_f(f))
 
-  #def recall_all_rewritable_files(self):
-  def recall_all_needed_resources(self):
-    """do() wise, this depends only on all rewritable_files."""
-    return self._referenced_resource_files
-    
+  def recall_all_rewritable_files(self):
+    return self._rewritable_files
+
+  def recall_all_files_that_can_have_deps(self, required_files):
+    return set(filter(
+          lambda f: f in self._rewritable_files,
+          set().union(*(self.recall_transitive_deps_including_self(f)
+                        for f in required_files if f in self._rewritable_files))))
+
+  def recall_all_needed_resources(self, required_files):
+    """do() wise, this depends on recall_all_files_that_can_have_deps(required_files)."""
+    return set().union(*(self.recall_transitive_deps(f)
+                         for f in required_files if f in self._rewritable_files))
 
   def rewrite(self,
         dest_dir,
