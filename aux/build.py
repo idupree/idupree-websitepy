@@ -298,10 +298,10 @@ def custom_site_preprocessing(do):
   rewriter = resource_rewriting.ResourceRewriter(
     files_to_rewrite, site_source_prefix = 'site', do=do)
 
-  nonresource_routes = [route_ for route_ in route_metadata]
-
+  nonresource_routes = {route_ for route_ in route_metadata}
   for f in rewriter.recall_all_needed_resources():
     add_route(fake_resource_route+f, f)
+  resource_routes = {route_ for route_ in route_metadata} - nonresource_routes
 
   broken_link_found = False
   #TODO use do() to make this cached in a file.
@@ -403,8 +403,8 @@ def custom_site_preprocessing(do):
       #route_metadata[route].headers.append(("Link", '<'+canonical_url+'>; rel="canonical"'))
 
   utils.write_file_text('nocdn-resource-routes',
-    '\n'.join(nocdn_resources_route+rewriter.recall_rewritten_resource_name(f)
-              for f in rewriter.recall_all_needed_resources()))
+    '\n'.join(nocdn_resources_route+rewriter.recall_rewritten_resource_name(fake_rr_to_f(f))
+              for f in resource_routes))
   utils.write_file_text('nonresource-routes', '\n'.join(nonresource_routes))
 
   route_metadata[None] = copy.deepcopy(file_metadata['404.html'])
