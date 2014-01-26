@@ -93,17 +93,20 @@ class ResourceRewriter(object):
     hash_dir = self._hash_dir = join(rr_cache_dir, 'hash')
     hash_incl_deps_dir = self._hash_incl_deps_dir = join(rr_cache_dir, 'hash-incl-deps')
     rewritten_resource_name_dir = self._rewritten_resource_name_dir = join(rr_cache_dir, 'rewritten-resource-name')
+    referenced_and_rewritable_files = set(rewritable_files)
     for f in rewritable_files:
       for [src], [dest] in do([join(site_source_prefix, f)], [join(direct_deps_dir, f)]):
         #todo assert no deps contain \n?
         direct_deps = [relpath(dd, site_source_prefix) for dd in
                        direct_rr_deps_of_file(rr_ref_re, src, site_source_prefix)]
         io['w'](dest, serialize_path_set(direct_deps))
-      for dd in self.recall_direct_deps(f):
-        self._referenced_resource_files.add(dd)
-        for [src], [dest] in do([join(site_source_prefix, dd)], [join(hash_dir, dd)]):
-          io['wb'](dest, utils.sha384file(src).digest())
+      self._referenced_resource_files.update(self.recall_direct_deps(f))
+      referenced_and_rewritable_files.update(self.recall_direct_deps(f))
     self._referenced_resource_files = frozenset(self._referenced_resource_files)
+    referenced_and_rewritable_files = frozenset(referenced_and_rewritable_files)
+    for f in referenced_and_rewritable_files:
+      for [src], [dest] in do([join(site_source_prefix, f)], [join(hash_dir, f)]):
+        io['wb'](dest, utils.sha384file(src).digest())
     for f in rewritable_files:
       # todo it is possible to do more work-sharing than this for more efficiency
       transitive_deps = set(utils.make_transitive(self.recall_direct_deps)(f))
@@ -112,7 +115,7 @@ class ResourceRewriter(object):
       for _, [dest] in do(filter(exists, [join(direct_deps_dir, path) for path in {f} | transitive_deps]),
                           [join(transitive_deps_dir, f)]):
         io['w'](dest, serialize_path_set(transitive_deps))
-    for f in self._referenced_resource_files:
+    for f in referenced_and_rewritable_files:
       incl_deps = self.recall_transitive_deps_including_self(f)
       incl_dep_sha_files = [join(hash_dir, dep) for dep in incl_deps]
       for _, [dest] in do(incl_dep_sha_files, [join(hash_incl_deps_dir, f)]):
@@ -120,6 +123,7 @@ class ResourceRewriter(object):
             [io['rb'](dep) for dep in incl_dep_sha_files])
         incl_deps_sha = hashlib.sha384(b''.join(incl_dep_shas)).digest()
         io['wb'](dest, incl_deps_sha)
+    for f in referenced_and_rewritable_files:
       for [src], [dest] in do([join(hash_incl_deps_dir, f)], [join(rewritten_resource_name_dir, f)]):
         hashdigest = io['rb'](src)
         io['w'](dest, rr_path_rewriter(f, hashdigest))
