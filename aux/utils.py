@@ -69,7 +69,7 @@ def make_transitive(relation, always_include_base_case = False, multiple_base_ca
     deps = set()
     if multiple_base_cases:
       newdeps = (list(set(initial)) if always_include_base_case
-                 else list(set(relation(i) for i in set(initial))))
+                 else list(set().union(*(relation(i) for i in set(initial)))))
     else:
       newdeps = [initial] if always_include_base_case else list(relation(initial))
     for newdep in popiter(newdeps):
