@@ -1,5 +1,5 @@
 
-import re, hashlib, base64
+import re, hashlib, base64, os
 from os.path import join, relpath, exists, normpath, dirname
 
 import urlregexps, utils
@@ -96,7 +96,6 @@ class ResourceRewriter(object):
     referenced_and_rewritable_files = set(rewritable_files)
     for f in rewritable_files:
       for [src], [dest] in do([join(site_source_prefix, f)], [join(direct_deps_dir, f)]):
-        #todo assert no deps contain \n?
         direct_deps = [relpath(dd, site_source_prefix) for dd in
                        direct_rr_deps_of_file(rr_ref_re, src, site_source_prefix)]
         io['w'](dest, serialize_path_set(direct_deps))
@@ -211,7 +210,11 @@ class ResourceRewriter(object):
           
 
 
-def serialize_path_set(paths): return '\n'.join(sorted(set(paths)))
-def deserialize_paths(text): return [] if text == '' else text.split('\n')
+def serialize_path_set(paths):
+  assert(not any(re.search(r'\n', p) for p in paths))
+  return '\n'.join(sorted(set(paths)))
+
+def deserialize_paths(text):
+  return [] if text == '' else text.split('\n')
 
 
