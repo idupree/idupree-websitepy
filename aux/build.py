@@ -40,17 +40,11 @@ def build():
       lambda f: re.search('\.py$', f),
       set(utils.files_under('aux')) | set(utils.files_under('priv'))))
   for do in buildsystem.run('.', sources):
-    
-    # TODO in tests, test that files_to_gzip and not others
-    # are gzipped when Accept-Encoding gzip and are Vary and
-    # that the other headers exist too.
     route_metadata, rewriter = \
         custom_site_preprocessing(do)
 
     nginx_openresty(do, rewriter, route_metadata)
 
-#    httpd_possibly_along_with_cdn_incapable_of_gz_negotiation(do, rewriter, routes, files_to_gzip, file_headers)
-    
 class RouteInfo(object):
   """
   status: numeric HTTP status code
