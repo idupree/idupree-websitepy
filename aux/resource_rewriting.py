@@ -206,6 +206,7 @@ class ResourceRewriter(object):
       orig_path = relpath(dep_path, self._site_source_prefix)
       new_path = self.recall_rewritten_resource_name(orig_path)
       return resource_url_maker(new_path, orig_path)
+    already_copied = set()
     for f in self._rewritable_files:
       incl_deps = [join(self._site_source_prefix, g)
                    for g in self.recall_transitive_deps_including_self(f)]
@@ -213,18 +214,21 @@ class ResourceRewriter(object):
         resolve_rr_deps_of_file(self._rr_ref_re,
           join(self._site_source_prefix, f), dest, resolver,
           self._site_source_prefix)
+      already_copied.add(f)
     if copy_nonrewritable_resources != None:
       for f in self._referenced_resource_files:
-        if f not in self._rewritable_files:
+        if f not in already_copied:
           for [src], [dest] in self._do(
                 [join(self._site_source_prefix, f)], [join(dest_dir, f)]):
             copy_nonrewritable_resources(src, dest)
+          already_copied.add(f)
     if copy_remaining_files_in_site_source_prefix != None:
       for f in utils.relpath_files_under(self._site_source_prefix):
-        if f not in self._rewritable_files and f not in self._referenced_resource_files:
+        if f not in already_copied:
           for [src], [dest] in self._do(
                 [join(self._site_source_prefix, f)], [join(dest_dir, f)]):
             copy_remaining_files_in_site_source_prefix(src, dest)
+          already_copied.add(f)
           
 
 
