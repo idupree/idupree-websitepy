@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 import sys, os, re, html, urllib
-from os.path import join, normpath, dirname, basename
+from os.path import join, normpath, dirname, basename, isdir
 import create_secrets
 import urlregexps
 import utils
@@ -27,11 +27,17 @@ It doesn't make any changes until you submit the web form.
 queryandfragment_re = re.compile(r'[?#].*')
 nonrelativeurl_re = re.compile(urlregexps.urlwithdomain+'|'+urlregexps.domainrelativeurl)
 def url_file_exists(url, filedirname, existence):
-  if re.search(nonrelativeurl_re, url):
-    ret = False
-  else:
-    path = normpath(join(filedirname, re.sub(queryandfragment_re, '', url)))
-    ret = (path in existence and existence[path] == True)
+  ret = False
+  plainurl = re.sub(queryandfragment_re, '', url)
+  # "", ".", ".." occur too often as non-URL-related strings and are very
+  # likely not files/directories we want to refer to as resources.
+  # (On occasion, "." might be wanted, but "./" *is* detected and is
+  # at least as likely to be the used string.)
+  if not re.search(nonrelativeurl_re, url) and plainurl not in {'', '.', '..'}:
+    path = normpath(join(filedirname, plainurl))
+    ret = (path in existence)
+    # If directory refs would have to end in /:
+    # ... and (existence[path] == True or plainurl[-1:] == '/' or url[-3:] == '?rr'))
   return ret
 
 def swizzle_file(display_filename, base_relative_filename, cwd_relative_filename, filecontents, existence):
@@ -84,6 +90,7 @@ def swizzle_file(display_filename, base_relative_filename, cwd_relative_filename
     linehtmlbuilder.append('<p class="context"><span class="lineno">'
       +display_filename+':'+str(lineno+1)+'</span><span class="contextcontent">')
     idx = 0
+    this_line_is_interesting = False
     def idxtill(nextloc):
       nonlocal idx
       if nextloc-idx > 80:
@@ -109,6 +116,16 @@ def swizzle_file(display_filename, base_relative_filename, cwd_relative_filename
       orig_has_rr = bool(orig_url_rr_match)
       if orig_url_rr_match:
         url = orig_url_rr_match.group('baseurl')
+      plainurl = re.sub(queryandfragment_re, '', url)
+      path = normpath(join(filedirname, plainurl))
+      # Directory references have to be particularly likely to be
+      # resource refs, because they visually appear more like more
+      # things that are not resource refs.
+      if existence[path] == False and not (
+          prevchar in {'"',"'"} and nextchar in {'"',"'"}
+          and line[start-5:start] != "href=" and line[start-6:start-1] != "href="):
+        continue
+      this_line_is_interesting = True
       idxtill(start)
       idx = end
       input_id = '{}:{}:{}'.format(display_filename, lineno, start)
@@ -145,7 +162,8 @@ def swizzle_file(display_filename, base_relative_filename, cwd_relative_filename
       transformations[input_id] = (cwd_relative_filename, lineno, start, line[start:end], new_text)
     idxtill(len(line.rstrip('\r\n')))
     linehtmlbuilder.append('</span></p>\n')
-    htmlbuilder.extend(linehtmlbuilder)
+    if this_line_is_interesting:
+      htmlbuilder.extend(linehtmlbuilder)
   return (''.join(htmlbuilder), transformations)
 
 # encodings? i guess i can require only URLs to be utf-8 hmm
