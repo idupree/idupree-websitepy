@@ -1,11 +1,15 @@
 
 import re, hashlib, base64, os
-from os.path import join, relpath, exists, normpath, dirname
+from os.path import join, relpath, exists, normpath, dirname, basename, isdir
 
 import urlregexps, utils
 import secrets
 # import buildsystem  #not directly used
 
+def joinif(a, b):
+  if a and b: return join(a, b)
+  elif a: return a
+  else: return b
 
 def direct_rr_deps_of_file(rr_ref_re, fpath, site_files_prefix):
   fdirname = dirname(fpath)
@@ -23,7 +27,11 @@ def resolve_rr_deps_of_file(rr_ref_re, fpath, fpathout, f, site_files_prefix):
     rel_ref = match.group('ref').decode('utf-8')
     if rel_ref[:1] == '/': ref = site_files_prefix+rel_ref
     else: ref = join(fdirname, rel_ref)
-    return f(normpath(ref)).encode('utf-8')
+    result = f(normpath(ref))
+    # some/dir/?rr keeps the trailing slash when rewritten:
+    if ref[-1:] == '/' and result[-1:] != '/':
+      result += '/'
+    return result.encode('utf-8')
   contentsout = re.sub(rr_ref_re, g, contents)
   utils.write_file_binary(fpathout, contentsout)
 
@@ -99,9 +107,21 @@ class ResourceRewriter(object):
                        direct_rr_deps_of_file(rr_ref_re, src, site_source_prefix)]
         io['w'](dest, serialize_path_set(direct_deps))
       self._referenced_resource_files.update(self.recall_direct_deps(f))
-    for f in self._referenced_resource_files - rewritable_files:
-      for [src], [dest] in do([join(site_source_prefix, f)], [self._direct_deps_f(f)]):
-        io['w'](dest, serialize_path_set(set()))
+    def referenced_dir(f):
+      if isdir(join(site_source_prefix, f)):
+        for [src], [dest] in do([join(site_source_prefix, f)], [self._direct_deps_f(f)]):
+          direct_deps = [relpath(join(src, dd), site_source_prefix) for dd in sorted(os.listdir(src))]
+          io['w'](dest, serialize_path_set(direct_deps))
+        self._referenced_resource_files.update(self.recall_direct_deps(f))
+        return self.recall_direct_deps(f)
+      else:
+        return ()
+    for _ in utils.make_transitive(referenced_dir,
+        multiple_base_cases=True)(self._referenced_resource_files): pass
+    for f in self._referenced_resource_files:
+      if f not in rewritable_files and not isdir(join(site_source_prefix, f)):
+        for [src], [dest] in do([join(site_source_prefix, f)], [self._direct_deps_f(f)]):
+          io['w'](dest, serialize_path_set(()))
     self._referenced_resource_files = frozenset(self._referenced_resource_files)
     referenced_and_rewritable_files = frozenset(self._referenced_resource_files | rewritable_files)
     for f in referenced_and_rewritable_files:
@@ -122,11 +142,28 @@ class ResourceRewriter(object):
             [io['rb'](dep) for dep in incl_dep_sha_files])
         incl_deps_sha = hashlib.sha384(b''.join(incl_dep_shas)).digest()
         io['wb'](dest, incl_deps_sha)
-    for f in referenced_and_rewritable_files:
-      for [src], [dest] in do([self._hash_incl_deps_f(f)],
-                              [self._rewritten_resource_name_f(f)]):
-        hashdigest = io['rb'](src)
-        io['w'](dest, rr_path_rewriter(f, hashdigest))
+    # sorted() will process directories before their contents
+    for f in sorted(referenced_and_rewritable_files):
+      # Put the hash on the farthest self or ancestor directory that
+      # is rr-referenced by anyone.
+      f_base = f
+      f_rest = None
+      while dirname(f_base) in referenced_and_rewritable_files:
+        f_rest = joinif(basename(f_base), f_rest)
+        f_base = dirname(f_base)
+      src = self._hash_incl_deps_f(f_base)
+      dest = self._rewritten_resource_name_f(f)
+      # Specifying this dependency fully is too hard now that it depends
+      # on whether any rewritable file rr-links to each parent directory.
+      # Use do() to create directories if necessary with a
+      # reasonable-ish mtime, but then recompute the file regardless.
+      for _ in do([src], [dest]):
+        # Create file so that the buildsystem code won't get confused.
+        # It will be overwritten soon anyway, regardless of how this do()
+        # generates the file.
+        io['w'](dest, '')
+      hashdigest = io['rb'](src)
+      io['w'](dest, joinif(rr_path_rewriter(f_base, hashdigest), f_rest))
 
   def _direct_deps_f(self, f):
     return join(self._rr_cache_dir, 'direct-deps', f)+'.deps'
@@ -163,16 +200,18 @@ class ResourceRewriter(object):
   def recall_all_rewritable_files(self):
     return self._rewritable_files
 
-  def recall_all_files_that_can_have_deps(self, required_files):
+  def recall_all_files_and_dirs_that_can_have_deps(self, required_files):
     return set(filter(
-          lambda f: f in self._rewritable_files,
+          lambda f: f in self._rewritable_files or isdir(join(self._site_source_prefix, f)),
           set().union(*(self.recall_transitive_deps_including_self(f)
                         for f in required_files if f in self._rewritable_files))))
 
-  def recall_all_needed_resources(self, required_files):
-    """do() wise, this depends on recall_all_files_that_can_have_deps(required_files)."""
-    return set().union(*(self.recall_transitive_deps(f)
-                         for f in required_files if f in self._rewritable_files))
+  def recall_all_needed_resources(self, required_files, count_directories_as_resources=False):
+    """do() wise, this depends on recall_all_files_and_dirs_that_can_have_deps(required_files)."""
+    return set(filter(
+          lambda f: count_directories_as_resources or not isdir(join(self._site_source_prefix, f)),
+          set().union(*(self.recall_transitive_deps(f)
+                        for f in required_files if f in self._rewritable_files))))
 
   def rewrite(self,
         dest_dir,
@@ -217,7 +256,7 @@ class ResourceRewriter(object):
       already_copied.add(f)
     if copy_nonrewritable_resources != None:
       for f in self._referenced_resource_files:
-        if f not in already_copied:
+        if f not in already_copied and not isdir(join(self._site_source_prefix, f)):
           for [src], [dest] in self._do(
                 [join(self._site_source_prefix, f)], [join(dest_dir, f)]):
             copy_nonrewritable_resources(src, dest)

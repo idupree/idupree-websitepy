@@ -382,7 +382,7 @@ def test_http_response(ip, port, route, response):
 
     if route in resource_routes:
       test('far future Cache-Control', lambda:test.re(r'^max-age=[0-9]{7,8}$', resp.headers["Cache-Control"]))
-      test('obscure name (or /t.gif)', lambda:test.re(r'^/t\.gif$|\.[-0-9a-zA-Z_]{15}(\.|$)', route))
+      test('obscure name (or /t.gif)', lambda:test.re(r'^/t\.gif$|\.[-0-9a-zA-Z_]{15}([./]|$)', route))
 
     if route == '/':
       #TODO create my own local spampoison pages

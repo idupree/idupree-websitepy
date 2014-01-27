@@ -1,6 +1,6 @@
 
 import os, sys, hashlib, re, gzip
-from os.path import relpath, join
+from os.path import relpath, join, isdir
 
 def subPrematchedText(matches, replacement, originalText):
   """
@@ -84,9 +84,13 @@ def make_transitive(relation, always_include_base_case = False, multiple_base_ca
 def sha384file(path):
   # http://stackoverflow.com/questions/1131220/get-md5-hash-of-big-files-in-python
   h = hashlib.sha384()
-  with open(path, 'rb') as f: 
-    for chunk in iter(lambda: f.read(2**20), b''): 
-      h.update(chunk)
+  if isdir(path):
+    # Hash directory contents as a sequence of \0-terminated directory entries
+    h.update(b''.join(p.encode()+b'\0' for p in sorted(os.listdir(path))))
+  else:
+    with open(path, 'rb') as f:
+      for chunk in iter(lambda: f.read(2**20), b''):
+        h.update(chunk)
   return h
 
 def file_re_sub(infile, outfile, *sub_args, **sub_kwargs):
