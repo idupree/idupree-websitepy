@@ -89,6 +89,10 @@ class ResourceRewriter(object):
     self._rr_ref_re = rr_ref_re
     self._rr_path_rewriter = rr_path_rewriter
     referenced_and_rewritable_files = set(rewritable_files)
+    # Changes to this Python file are moderately likely to change rewriting
+    # behaviour, though none of the files this file includes are very
+    # likely to.  So hash this file and include it in resource name hashes.
+    this_file_hash = utils.sha384file(__file__).digest()
     for f in rewritable_files:
       for [src], [dest] in do([join(site_source_prefix, f)], [self._direct_deps_f(f)]):
         direct_deps = [relpath(dd, site_source_prefix) for dd in
@@ -114,7 +118,8 @@ class ResourceRewriter(object):
       incl_deps = self.recall_transitive_deps_including_self(f)
       incl_dep_sha_files = [self._hash_f(dep) for dep in incl_deps]
       for _, [dest] in do(incl_dep_sha_files, [self._hash_incl_deps_f(f)]):
-        incl_dep_shas = ([secrets.rr_hash_random_bytes] +
+        incl_dep_shas = (
+            [secrets.rr_hash_random_bytes, this_file_hash] +
             [io['rb'](dep) for dep in incl_dep_sha_files])
         incl_deps_sha = hashlib.sha384(b''.join(incl_dep_shas)).digest()
         io['wb'](dest, incl_deps_sha)
