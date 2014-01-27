@@ -127,7 +127,6 @@ class ResourceRewriter(object):
                               [self._rewritten_resource_name_f(f)]):
         hashdigest = io['rb'](src)
         io['w'](dest, rr_path_rewriter(f, hashdigest))
-    #[print(x) for x in sorted(store.items())]
 
   def _direct_deps_f(self, f):
     return join(self._rr_cache_dir, 'direct-deps', f)+'.deps'
