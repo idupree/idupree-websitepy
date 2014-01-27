@@ -6,7 +6,6 @@ from urllib.parse import urljoin, urldefrag, urlparse
 import buildsystem, utils
 import errdocs
 import urlregexps
-import myglob
 import resource_rewriting
 import secrets
 from private_configuration import cdn_resources_path, scheme_and_domain, doindexfrom, butdontindexfrom
@@ -37,8 +36,10 @@ def fake_rr_to_f(route):
 def build():
   os.chdir(os.path.dirname(os.path.join('.', __file__)))
   os.chdir('..')
-  for do in buildsystem.run('.',
-        set(myglob.fglob('aux/**.py'))|set(myglob.fglob('priv/**.py'))):
+  sources = set(filter(
+      lambda f: re.search('\.py$', f),
+      set(utils.files_under('aux')) | set(utils.files_under('priv'))))
+  for do in buildsystem.run('.', sources):
     
     # TODO in tests, test that files_to_gzip and not others
     # are gzipped when Accept-Encoding gzip and are Vary and

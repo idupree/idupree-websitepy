@@ -153,6 +153,11 @@ class pushd(object):
   def __exit__(self, type, value, traceback):
     os.chdir(self.source)
 
+def files_under(rootpath):
+  for dirpath, dirnames, filenames in os.walk(rootpath):
+    for f in filenames:
+      yield join(dirpath, f)
+
 def relpath_files_under(rootpath):
   for dirpath, dirnames, filenames in os.walk(rootpath):
     for f in filenames:
