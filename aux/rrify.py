@@ -206,7 +206,7 @@ a.modify.on .modified:not(.orig) { color: #00ff00; }
 .lineno::after { color: black; content: ": "; }
 </style>
 <script>
-'''+utils.read_file_text("site/jquery-1.10.2.min.js")+'''
+'''+utils.read_file_text(join(dirname(__file__), "../site/jquery-1.10.2.min.js"))+'''
 </script>
 <script>
 $(function() {
