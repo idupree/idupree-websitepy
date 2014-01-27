@@ -99,12 +99,11 @@ class ResourceRewriter(object):
                        direct_rr_deps_of_file(rr_ref_re, src, site_source_prefix)]
         io['w'](dest, serialize_path_set(direct_deps))
       self._referenced_resource_files.update(self.recall_direct_deps(f))
-      referenced_and_rewritable_files.update(self.recall_direct_deps(f))
     for f in self._referenced_resource_files - rewritable_files:
       for [src], [dest] in do([join(site_source_prefix, f)], [self._direct_deps_f(f)]):
         io['w'](dest, serialize_path_set(set()))
     self._referenced_resource_files = frozenset(self._referenced_resource_files)
-    referenced_and_rewritable_files = frozenset(referenced_and_rewritable_files)
+    referenced_and_rewritable_files = frozenset(self._referenced_resource_files | rewritable_files)
     for f in referenced_and_rewritable_files:
       for [src], [dest] in do([join(site_source_prefix, f)], [self._hash_f(f)]):
         io['wb'](dest, utils.sha384file(src).digest())
