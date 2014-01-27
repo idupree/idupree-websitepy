@@ -1,13 +1,13 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
-import sys, re, html, urllib
+import sys, os, re, html, urllib
 from os.path import join, normpath, dirname, basename
 import create_secrets
 import urlregexps
 import utils
 import localwebfn
 
-"""
+usage = """
 Usage:
 ./aux/rrify.py path/to/dir/to/swizzle/
 
@@ -303,7 +303,12 @@ def mutating_swizzle(possible_transformations, posted):
     mutating_swizzle_file(f, linereplacements)
 
 def main():
-  site = sys.argv[1]
+  try:
+    site = sys.argv[1]
+    os.stat(site)
+  except (IndexError, FileNotFoundError, NotADirectoryError):
+    print(usage)
+    exit(1)
   get_path = '/'+create_secrets.alnum_secret()
   post_path = '/'+create_secrets.alnum_secret()
   htmlf, possible_transformations = swizzle(site, post_path)
