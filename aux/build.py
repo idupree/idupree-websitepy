@@ -167,8 +167,8 @@ def custom_site_preprocessing(do):
     file_metadata[f] = RouteInfo(status=200, file=f)
     # TODO also gzip anything that benefits
     file_metadata[f].worth_gzipping = \
-      bool(re.search(r'\.(html|css|js|svg)$', f))
-    if re.search(r'\.(html|css|js)$', f):
+      bool(re.search(r'\.(html|css|js|svg|appcache)$', f))
+    if re.search(r'\.(html|css|js|appcache)$', f):
       files_to_rewrite.add(f)
       # [Note_Superset]
       # (Relevant for deployments that put resources on a static content
@@ -234,7 +234,7 @@ def custom_site_preprocessing(do):
         #so I'll run it every time.
         # Creates both f and f_map:
         cmd(['sassc', '-g', '-o', dest, src])
-    elif re.search(r'\.(txt|asc|pdf|tar\.(gz|bz2|xz))$|^t\.gif$|^haddock-presentation-2010/', srcf):
+    elif re.search(r'\.(txt|asc|pdf|tar\.(gz|bz2|xz)|appcache)$|^t\.gif$|^haddock-presentation-2010/', srcf):
       f = srcf
       route = scheme_and_domain+'/'+f
       dest = join('site', f)
