@@ -511,9 +511,8 @@ def nginx_openresty(do, rewriter, route_metadata):
         else:
           domainrelative_redirect_to = re.sub(urlregexps.urlschemeanddomain, '',
                                               urljoin(route, http_redirect_to))
-          port = """((({http = '80', https = '443'})[ngx.var.scheme] ~= ngx.var.server_port) and (':'..ngx.var.server_port) or '')"""
-          expr = ("""ngx.var.scheme..'://'..ngx.var.host..{}..{}"""
-                   .format(port, repr(domainrelative_redirect_to)))
+          expr = ("""ngx.var.scheme..'://'..ngx.var.host..port_string()..{}"""
+                   .format(repr(domainrelative_redirect_to)))
         rule.append(indent+"""ngx.header[{k}]={v}""".format(k=repr('Location'), v=expr))
     # Python and Lua string syntaxes are similar enough that we can use
     # Python repr() to make Lua strings. 
@@ -570,6 +569,14 @@ def nginx_openresty(do, rewriter, route_metadata):
     local accept_encoding = ngx.var.http_accept_encoding
     return (accept_encoding ~= nil) and
            (ngx.re.match(accept_encoding, 'gzip', 'o') ~= nil)
+  end
+  local function port_string()
+    local scheme = ngx.var.scheme
+    local port = ngx.var.server_port
+    if (scheme == 'http' and port == '80') or (scheme == 'https' and port == '443')
+    then return ''
+    else return ':'..port
+    end
   end
   """ +
   "local pages = {\n" + "\n".join(rules) + "\n}\n" +
