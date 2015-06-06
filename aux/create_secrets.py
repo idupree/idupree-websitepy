@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import random
 
+easy_to_read_and_type = '23456789abcdefghijkmnpqrstuvwxyz'
 alnum = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
 def alnum_secret(length = 22):
   """
