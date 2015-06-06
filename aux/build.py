@@ -233,7 +233,7 @@ def custom_site_preprocessing(do):
         #the correct set of dependencies to do(), but sassc is pretty fast
         #so I'll run it every time.
         # Creates both f and f_map:
-        cmd(['sassc', '-g', '-o', dest, src])
+        cmd(['sassc', '--sourcemap', src, dest])
     elif re.search(r'\.(txt|asc|pdf|tar\.(gz|bz2|xz)|appcache)$|^t\.gif$|^haddock-presentation-2010/', srcf):
       f = srcf
       route = scheme_and_domain+'/'+f
