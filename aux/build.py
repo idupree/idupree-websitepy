@@ -585,7 +585,7 @@ def nginx_openresty(do, rewriter, route_metadata):
   "return do_page\n"
   )
   
-  utils.write_file_text('nginx/init.lua', init_lua)
+  utils.write_file_text('nginx/idupreecom.lua', init_lua)
   for [src], [dest] in do(['src/aux/nginx.conf'], ['nginx/nginx.conf']):
     os.link(src, dest)
 

@@ -218,6 +218,7 @@ status_codes_to_test = {
 	'/conf': 404,
 	'/conf/': 404,
 	'/conf/init.lua': 404,
+	'/conf/idupreecom.lua': 404,
 	'/conf/nginx.conf': 404,
 	'/conf/pagecontent': 404,
 	'/conf/pagecontent/': 404,
