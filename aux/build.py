@@ -581,7 +581,8 @@ def nginx_openresty(do, rewriter, route_metadata):
   """ +
   "local pages = {\n" + "\n".join(rules) + "\n}\n" +
   "local s404 = " + s404 + "\n" +
-  "function do_page(path) (pages[path] or s404)(path) end\n"
+  "local function do_page(path) (pages[path] or s404)(path) end\n" +
+  "return do_page\n"
   )
   
   utils.write_file_text('nginx/init.lua', init_lua)
