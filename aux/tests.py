@@ -356,10 +356,18 @@ def test_http_response(ip, port, route, response):
           # Assume messages are bad unless we've seen them and decided
           # they're okay.  The validator mostly only emits messages for
           # actual problems.
+          # Unfortunately Twine-generated HTML does not validate at all.
+          is_twine = False
           def message_is_alright(message):
             # This validation error is deliberate in an attempt to reduce
             # spambot email harvesting.  The nonconformance appears not to
             # cause issues in common browsers.
+            nonlocal is_twine
+            if is_twine:
+              return True
+            if None != re.search(r'^Element “tw-story”', message["message"]):
+              is_twine = True
+              return True
             return None != re.search(
               r'^Bad value “maILtO:.*” for attribute “href” on element “a”: Control character in path component\.$',
               message["message"],
