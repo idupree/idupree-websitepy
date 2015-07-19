@@ -440,7 +440,7 @@ def nginx_openresty(do, rewriter, route_metadata):
     #using the shell that way.
     h = recall_nginx_pagecontent_hash(f)
     return h[0:2]+'/'+h[2:60] + ('.gz' if gzipped else '')
-  nginx_pagecontent_dir_build = 'nginx/pagecontent/'
+  nginx_pagecontent_dir_build = 'nginx/idupreecom/pagecontent/'
   #nginx_pagecontent_dir_deploy = '/srv/openresty/conf/pagecontent/'
   # TODO could make this path include a random secret component
   nginx_pagecontent_url_prefix_deploy = '/pagecontent/'
@@ -585,7 +585,7 @@ def nginx_openresty(do, rewriter, route_metadata):
   "return do_page\n"
   )
   
-  utils.write_file_text('nginx/idupreecom.lua', init_lua)
+  utils.write_file_text('nginx/idupreecom/do_page.lua', init_lua)
   for [src], [dest] in do(['src/aux/nginx.conf'], ['nginx/nginx.conf']):
     os.link(src, dest)
 
