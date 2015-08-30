@@ -78,14 +78,25 @@ def make_transitive(relation, always_include_base_case = False, multiple_base_ca
         newdeps.extend(relation(newdep))
   return ret
 
-# Of the common hash functions, sha224 and sha384 are less vulnerable to
-# length extension attacks, and don't have many corresponding downsides, so prefer
-# them.  On 64-bit hosts, sha384 is faster.
 def sha384file(path):
+  """
+  Returns a hashlib hash object giving the sha384 of the argument
+  file's contents.
+
+  Hashes directory contents as a sequence of NUL-character-terminated
+  directory entries (doesn't use the contents of those files, just
+  their names in non-localized string order (which is alphabetical-ish)).
+
+  Why SHA-384?  It is the best function available in hashlib. (As of this
+  writing, SHA-3 isn't in hashlib: august 2015 / python 3.4.)
+  sha224 and sha384 are less vulnerable to length extension attacks than
+  the others, and don't have many corresponding downsides.  sha384 is
+  faster on 64-bit computers (which I develop on), and has more result bits
+  (for the unlikely chance that matters), so use sha384.
+  """
   # http://stackoverflow.com/questions/1131220/get-md5-hash-of-big-files-in-python
   h = hashlib.sha384()
   if isdir(path):
-    # Hash directory contents as a sequence of \0-terminated directory entries
     h.update(b''.join(p.encode()+b'\0' for p in sorted(os.listdir(path))))
   else:
     with open(path, 'rb') as f:
