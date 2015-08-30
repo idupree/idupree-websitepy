@@ -28,6 +28,16 @@ $if(no-content-div)$$else$<div id="content">$endif$
 $if(title)$
 <h1>$title$</h1>
 $endif$
+$if(pre-toc)$
+$pre-toc$
+$endif$
+$if(use-toc)$
+$if(toc)$
+<nav class="TOC">
+$toc$
+</nav>
+$endif$
+$endif$
 $body$
 $if(no-content-div)$$else$</div>$endif$
 $if(no-bc-logo)$$else$<div class="bc_logo"><a class="bc_logo_a" href="/"><img
