@@ -122,15 +122,20 @@ def file_re_sub(infile, outfile, *sub_args, **sub_kwargs):
 
 def gzip_omitting_metadata(infile, outfile):
   """
-  Reads infile, gzips it, and writes the gzipped version to outfile.
+  Reads infile, gzips it at the maximum compression level, and writes
+  the gzipped version to outfile.
+
   The gzip metadata 'filename' is left empty and 'mtime' is set to 0
-  in Unix time (which is 1970).  There is no reason to include this
-  metadata in "Content-Encoding: gzip" files, but the gzip file format
-  contains those fields.
+  in Unix time (which is 1970).  An example situation you'd want this:
+
+  For gzip-encoded data sent with "Content-Encoding: gzip",
+  this metadata goes unused, and possibly wastes bandwidth or
+  leaks information that wasn't intended to be published
+  (most likely unimportant information, admittedly).
   """
   with open(infile, 'rb') as f_in:
     with open(outfile, 'wb') as f_out:
-      with gzip.GzipFile(filename='', fileobj=f_out, mtime=0) as f_gzip:
+      with gzip.GzipFile(filename='', fileobj=f_out, mtime=0, compresslevel=9) as f_gzip:
         #per python docs http://docs.python.org/3/library/gzip.html
         f_gzip.writelines(f_in)
 
