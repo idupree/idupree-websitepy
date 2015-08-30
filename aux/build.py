@@ -204,9 +204,9 @@ def custom_site_preprocessing(do):
     src = join('src/site', srcf)
     route = None
     f = None
-    if re.search(r'\.(html|md)$', srcf):
+    if re.search(r'\.(html|md|rss|atom)$', srcf):
       is_markdown = re.search(r'\.md$', srcf)
-      extless_path = re.sub(r'\.(html|md)$', '', srcf)
+      extless_path = re.sub(r'\.(html|md|rss|atom)$', '', srcf)
       f = extless_path+'.html'
       dest = join('site', f)
       # slight hack for index.html file
