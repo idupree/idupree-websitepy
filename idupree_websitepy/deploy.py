@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import sys, subprocess
-import utils
+
+from . import utils
 
 
 def rsync_upload(pages, dest, extra_rsync_args = [], delete = True):

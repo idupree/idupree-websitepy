@@ -2,10 +2,11 @@
 # -*- coding: utf-8 -*-
 import sys, os, re, html, urllib
 from os.path import join, normpath, dirname, basename, isdir, exists
-import create_secrets
-import urlregexps
-import utils
-import localwebfn
+
+from . import create_secrets
+from . import urlregexps
+from . import utils
+from . import localwebfn
 
 usage = """
 Usage:

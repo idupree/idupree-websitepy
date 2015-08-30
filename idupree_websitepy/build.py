@@ -3,12 +3,12 @@ import os, os.path, subprocess, re, base64, hashlib, mimetypes, copy
 from os.path import join, dirname, normpath, exists
 from urllib.parse import urljoin, urldefrag, urlparse
 
-import buildsystem, utils
-import errdocs
-import urlregexps
-import resource_rewriting
-import secrets
-from private_configuration import cdn_resources_path, scheme_and_domain, doindexfrom, butdontindexfrom
+from . import buildsystem, utils
+from . import errdocs
+from . import urlregexps
+from . import resource_rewriting
+from . import secrets
+from .private_configuration import cdn_resources_path, scheme_and_domain, doindexfrom, butdontindexfrom
 
 cmd = subprocess.check_call
 

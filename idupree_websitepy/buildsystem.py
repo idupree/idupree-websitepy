@@ -30,7 +30,8 @@ from os import stat, utime, rename, link, mkdir, chdir, makedirs, getcwd, walk, 
 from os.path import join, abspath, dirname, basename, exists, relpath
 from shutil import rmtree, copyfile
 import re
-import utils
+
+from . import utils
 
 # TODO somehow make it work in Python 2 without losing precision
 # stat's _ns were only added in Python 3.3

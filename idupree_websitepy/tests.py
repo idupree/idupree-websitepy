@@ -3,7 +3,7 @@
 import re, traceback, sys, os, collections, urllib.parse, json
 import asyncio
 
-import private_configuration
+from . import private_configuration
 
 # pip3 install --user http-parser
 try:
