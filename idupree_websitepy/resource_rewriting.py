@@ -4,7 +4,6 @@ from os.path import join, relpath, exists, normpath, dirname, basename, isdir
 
 from . import urlregexps
 from . import utils
-from . import secrets
 # from . import buildsystem  #not directly used
 
 def joinif(a, b):
@@ -45,6 +44,7 @@ class ResourceRewriter(object):
   """
   def __init__(
       self,
+      *,
       rewritable_files,
       site_source_prefix = '.',
       rr_cache_dir = 'rr',
@@ -58,9 +58,13 @@ class ResourceRewriter(object):
           r'^((?:.*/)?\.?[^/.]+)((?:\.[^/]*)?)$',
           r'\1.'+base64.urlsafe_b64encode(hashdigest)[:15].decode('ascii')+r'\2',
           f),
-      do = None
+      do = None,
+      hashed_data_prepend = b''
       ):
     """
+    Must be called with keyword arguments.  Most have defaults but you must specify
+    rewritable_files, which says the location of the files that you want to rewrite.
+
     Expects (join(site_source_prefix, f) for f in rewritable_files) to be existent files
     that can contain links to rewrite.  Also expects all linked resources to exist.
 
@@ -68,6 +72,15 @@ class ResourceRewriter(object):
 
     Expects 'do' to be from a current buildsystem.run() invocation,
     or None (default) for no caching of information between runs.
+
+    hashed_data_prepend can be set to a randomly generated secret byte-string.
+    If not everything on your website is public, this may moderately reduce
+    the chance that someone can find the non-public stuff by guessing the
+    hashes or the hashed file contents.  If you want ResourceRewriter to
+    produce consistent hashes -- so that, for example, diff or rsync between
+    new versions and old versions work better -- then you should pass the
+    same value every time.  One reasonable way to get such random data is
+    our utils module's alnum_secret: alnum_secret().encode('ascii')
     """
     if do == None:
       def do(srcs, dests):
@@ -139,7 +152,7 @@ class ResourceRewriter(object):
       incl_dep_sha_files = [self._hash_f(dep) for dep in incl_deps]
       for _, [dest] in do(incl_dep_sha_files, [self._hash_incl_deps_f(f)]):
         incl_dep_shas = (
-            [secrets.rr_hash_random_bytes, this_file_hash] +
+            [hashed_data_prepend, this_file_hash] +
             [io['rb'](dep) for dep in incl_dep_sha_files])
         incl_deps_sha = hashlib.sha384(b''.join(incl_dep_shas)).digest()
         io['wb'](dest, incl_deps_sha)

@@ -78,6 +78,16 @@ def make_transitive(relation, always_include_base_case = False, multiple_base_ca
         newdeps.extend(relation(newdep))
   return ret
 
+characters_that_are_easy_to_read_and_type = '23456789abcdefghijkmnpqrstuvwxyz'
+alphanumeric_characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+def alnum_secret(length = 22):
+  """
+  The default length of 22 gives at least 128 bits of entropy
+  (entropy = log2(62**length))
+  """
+  rng = random.SystemRandom()
+  return ''.join(rng.choice(alphanumeric_characters) for _ in range(length))
+
 def sha384file(path):
   """
   Returns a hashlib hash object giving the sha384 of the argument

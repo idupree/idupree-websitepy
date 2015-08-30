@@ -292,7 +292,10 @@ def custom_site_preprocessing(do):
   # It's not super elegant calling the rewriter inside custom processing
   # rather than after, but it'll do.
   rewriter = resource_rewriting.ResourceRewriter(
-    files_to_rewrite, site_source_prefix = 'site', do=do)
+    rewritable_files = files_to_rewrite,
+    site_source_prefix = 'site',
+    hashed_data_prepend = secrets.rr_hash_random_bytes,
+    do=do)
 
   nonresource_routes = {route_ for route_ in route_metadata}
   for f in rewriter.recall_all_needed_resources(

@@ -1,15 +1,7 @@
 #!/usr/bin/env python
 import random
 
-easy_to_read_and_type = '23456789abcdefghijkmnpqrstuvwxyz'
-alnum = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
-def alnum_secret(length = 22):
-  """
-  The default length of 22 gives at least 128 bits of entropy
-  (entropy = log2(62**length))
-  """
-  rng = random.SystemRandom()
-  return ''.join(rng.choice(alnum) for _ in range(length))
+from .utils import alnum_secret
 
 def main():
   for k, v in (

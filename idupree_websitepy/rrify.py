@@ -3,7 +3,6 @@
 import sys, os, re, html, urllib
 from os.path import join, normpath, dirname, basename, isdir, exists
 
-from . import create_secrets
 from . import urlregexps
 from . import utils
 from . import localwebfn
@@ -333,8 +332,8 @@ def main():
   except (IndexError, FileNotFoundError, NotADirectoryError):
     print(usage)
     exit(1)
-  get_path = '/'+create_secrets.alnum_secret()
-  post_path = '/'+create_secrets.alnum_secret()
+  get_path = '/'+utils.alnum_secret()
+  post_path = '/'+utils.alnum_secret()
   htmlf, possible_transformations = swizzle(site, post_path)
   print(get_path)
   print(post_path)
