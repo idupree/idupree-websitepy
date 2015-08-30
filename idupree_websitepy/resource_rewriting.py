@@ -2,7 +2,8 @@
 import re, hashlib, base64, os
 from os.path import join, relpath, exists, normpath, dirname, basename, isdir
 
-from . import urlregexps, utils
+from . import urlregexps
+from . import utils
 from . import secrets
 # from . import buildsystem  #not directly used
 

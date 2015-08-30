@@ -3,7 +3,8 @@ import os, os.path, subprocess, re, base64, hashlib, mimetypes, copy
 from os.path import join, dirname, normpath, exists
 from urllib.parse import urljoin, urldefrag, urlparse
 
-from . import buildsystem, utils
+from . import buildsystem
+from . import utils
 from . import errdocs
 from . import urlregexps
 from . import resource_rewriting
