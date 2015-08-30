@@ -1,5 +1,5 @@
 
-import os, sys, hashlib, re, gzip
+import os, sys, hashlib, re, gzip, random
 from os.path import relpath, join, isdir
 
 def subPrematchedText(matches, replacement, originalText):
