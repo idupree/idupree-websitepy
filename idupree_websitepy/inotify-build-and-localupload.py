@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 
 import subprocess, fcntl, os, os.path, time, datetime, sys
 os.chdir(os.path.dirname(os.path.join('.', __file__)))

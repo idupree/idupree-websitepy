@@ -1,4 +1,3 @@
-#!/usr/bin/python3
 
 import re, traceback, sys, os, collections, urllib.parse, json
 import asyncio

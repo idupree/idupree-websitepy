@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+
 # -*- coding: utf-8 -*-
 import sys, os, re, html, urllib
 from os.path import join, normpath, dirname, basename, isdir, exists
