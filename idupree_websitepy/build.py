@@ -29,6 +29,11 @@ def fake_rr_to_f(route):
 
 class Config(object):
   def __init__(self, *,
+    site_source_dir,
+    site_document_root_relative_to_source_dir = '.',
+    pandoc_template_relative_to_source_dir = None,
+    pandoc_command = 'pandoc',
+    list_of_compilation_source_files,
     canonical_scheme_and_domain = None,
     nocdn_resources_path = '/_resources/',
     doindexfrom,
@@ -37,9 +42,44 @@ class Config(object):
     nginx_hash_random_bytes
     ):
     """
+    os.path.join(site_source_dir, site_document_root_relative_to_source_dir):
+      directory that contains your to-be-website-contents.
+      You might make them be separate if you process some source files
+      that you want to make it clear they won't be directly served to
+      the user.  The document root *must* be within the source dir.
+
+    pandoc_template_relative_to_source_dir: similarly. Used if specified
+      and you have .md markdown content.
+
+    pandoc_command: executable to use for pandoc (relevant if you have
+      markdown files)
+
+    list_of_compilation_source_files: used so the recompilation checker can
+      check if your code is doing something different now. Make sure to include
+      at least the file you're calling this code from.  For example,
+          list_of_compilation_source_files =
+            set(filter(
+                lambda f: re.search('\.py$', f),
+                set(utils.files_under('.'))))
+      or you could use get_python_file_names_under() if applicable.
+
     canonical_scheme_and_domain: default none, example 'http://www.idupree.com'
-    .....
+
+    nocdn_resources_path:
+    serve all resources (images, CSS, etc) with paths prefixed with this
+    path. ("nocdn" because this code used to support serving files through
+    a CDN in a different way. If we bring back that feature, we'll see how
+    that ends up being arranged like.)
     """
+    assert(not re.search(r'\.\.|^/', site_document_root_relative_to_source_dir))
+    if pandoc_template_relative_to_source_dir != None:
+      assert(not re.search(r'\.\.|^/', pandoc_template_relative_to_source_dir))
+    self.site_source_dir = site_source_dir
+    self.site_document_root_relative_to_source_dir = site_document_root_relative_to_source_dir
+    self.site_document_root = join(site_source_dir, site_document_root_relative_to_source_dir)
+    self.pandoc_template_relative_to_source_dir = pandoc_template_relative_to_source_dir
+    self.pandoc_command = pandoc_command
+    self.list_of_compilation_source_files = list_of_compilation_source_files
     self.canonical_scheme_and_domain = canonical_scheme_and_domain
     # just for in this build script:
     # (should it always be something like the latter?)
@@ -68,6 +108,11 @@ def pngs_to_ico(png_srcs, dest):
   """
   cmd(['convert'] + png_srcs + [dest])
 
+def get_python_file_names_under(dirname):
+  return set(filter(
+      lambda f: re.search('\.py$', f),
+      set(utils.files_under(dirname))))
+
 def build(config, pre_action):
   """
   pass an instance of Config
@@ -77,12 +122,12 @@ def build(config, pre_action):
   pre_action is a function. pre_action(do) happens before other stuff
   but gets to share the build-temp directory...
   """
-  os.chdir(os.path.dirname(os.path.join('.', __file__)))
-  os.chdir('..')
-  sources = set(filter(
-      lambda f: re.search('\.py$', f),
-      set(utils.files_under('aux')) | set(utils.files_under('priv'))))
-  for do in buildsystem.run('.', sources):
+  library_dir = os.path.dirname(os.path.abspath(__file__))
+  sources = (set(config.list_of_compilation_source_files) | 
+             get_python_file_names_under(library_dir))
+  for do in buildsystem.run(config.site_source_dir, sources):
+    pre_action(do)
+
     route_metadata, rewriter = \
         custom_site_preprocessing(config, do)
 
@@ -130,10 +175,11 @@ def custom_site_preprocessing(config, do):
   route_metadata : dict from URL string to RouteInfo.
   rewriter : resource_rewriting.ResourceRewriter
   """
+  src_document_root = join('src', config.site_document_root_relative_to_source_dir)
   # The following are the path without any src/site/ or site/ prefix.
   # (Hmm, why *don't* the auxiliary dirs all have site/ under them in paths?
   #  It would mean less add/removing of path components.)
-  files_to_consider = list(utils.relpath_files_under('src/site'))
+  files_to_consider = list(utils.relpath_files_under(src_document_root))
   # files_to_rewrite : files that have resource-rewritable links in them
   files_to_rewrite = set()
   # file_metadata : {file:RouteInfo} contains default RouteInfo for
@@ -245,7 +291,7 @@ def custom_site_preprocessing(config, do):
     #    'Location', urljoin(from_route, to)))
 
   for srcf in files_to_consider:
-    src = join('src/site', srcf)
+    src = join(src_document_root, srcf)
     route = None
     f = None
     if re.search(r'\.(html|md|rss|atom)$', srcf):
@@ -259,8 +305,15 @@ def custom_site_preprocessing(config, do):
       url = (config.canonical_scheme_and_domain + domainrelative_route
              if config.canonical_scheme_and_domain != None else None)
       if is_markdown:
-        for [_, templ], [_] in do([src, 'src/aux/pandoc-template.html'], [dest]):
-          cmd(['pandoc', '--template='+templ, '-t', 'html5', '-o', dest, src])
+        if config.pandoc_template_relative_to_source_dir != None:
+          pandoc_template = join('src', config.pandoc_template_relative_to_source_dir)
+          pandoc_templates = [pandoc_template]
+        else:
+          pandoc_templates = []
+        for _ in do([src] + pandoc_templates, [dest]):
+          cmd([config.pandoc_command, '--standalone'] +
+              ['--template='+t for t in pandoc_templates] +
+              ['-t', 'html5', '-o', dest, src])
           autohead(dest, dest, url)
           autoobfuscate(dest, dest)
       else:
@@ -270,7 +323,7 @@ def custom_site_preprocessing(config, do):
     elif re.search(r'\.(scss|sass)$', srcf):
       f = re.sub(r'\.(scss|sass)$', '.css', srcf)
       # don't disturb precompiled scss:
-      if exists(join('src/site', f)):
+      if exists(join(src_document_root, f)):
         f = None
       else:
         f_map = f+'.map'
