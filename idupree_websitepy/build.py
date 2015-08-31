@@ -52,13 +52,30 @@ class Config(object):
     self.rr_hash_random_bytes = rr_hash_random_bytes
     self.nginx_hash_random_bytes = nginx_hash_random_bytes
 
+def svg_to_png(src, dest, width, height):
+  cmd(['inkscape', '--without-gui', '--export-png='+dest,
+    '--export-background-opacity=0', '-w', str(width), '-h', str(height),
+    str(src)])
+  cmd(['optipng', dest])
 
-def build(config):
+def pngs_to_ico(png_srcs, dest):
+  """
+  The ICO format allows multiple PNGs[1] of different resolutions
+  to be combined into one ICO file, with the context deciding which
+  resolution gets used in any particular place.
+  
+  [1] (or some other bitmap formats, but PNG is probably the best)
+  """
+  cmd(['convert'] + png_srcs + [dest])
+
+def build(config, pre_action):
   """
   pass an instance of Config
   TODO: make more configurable
   TODO: fix utils.files_under parts and document
             what is required of the caller
+  pre_action is a function. pre_action(do) happens before other stuff
+  but gets to share the build-temp directory...
   """
   os.chdir(os.path.dirname(os.path.join('.', __file__)))
   os.chdir('..')
@@ -263,7 +280,7 @@ def custom_site_preprocessing(config, do):
         #so I'll run it every time.
         # Creates both f and f_map:
         cmd(['sassc', '--sourcemap', src, dest])
-    elif re.search(r'\.(txt|asc|pdf|zip|tar\.(gz|bz2|xz)|appcache)$|^t\.gif$|^haddock-presentation-2010/', srcf):
+    elif re.search(r'\.(txt|asc|pdf|zip|tar\.(gz|bz2|xz)|appcache)$|^t\.gif$|^favicon.ico$|^haddock-presentation-2010/', srcf):
       f = srcf
       route = config.hypothetical_scheme_and_domain+'/'+f
       dest = join('site', f)
@@ -292,30 +309,6 @@ def custom_site_preprocessing(config, do):
     utils.write_file_text(dest, errdocs.errdoc(404))
   add_file(f)
   file_metadata[f].status = 404
-
-  def svg_to_png(src, dest, width, height):
-    cmd(['inkscape', '--without-gui', '--export-png='+dest,
-      '--export-background-opacity=0', '-w', str(width), '-h', str(height),
-      str(src)])
-    cmd(['optipng', dest])
-
-  f = 'nabla.png'
-  for [src], [dest] in do(['src/site/favicon.svg'], [join('site', f)]):
-    svg_to_png(src, dest, 64, 64)
-  add_file(f)
-
-  for f, xy in [('favicon16x16.png', 16), ('favicon32x32.png', 32)]:
-    for [src], [dest] in do(['src/site/favicon.svg'], [join('site', f)]):
-     svg_to_png(src, dest, xy, xy)
-
-  f = 'favicon.ico'
-  for srcs, [dest] in do(['site/favicon16x16.png'],#, 'site/favicon32x32.png'],
-                         [join('site', f)]):
-    cmd(['convert'] + srcs + [dest])
-  # IE < 11 needs favicon to be ico format
-  add_file(f)
-  route = config.hypothetical_scheme_and_domain+'/'+f
-  add_route(route, f)
 
   # It's not super elegant calling the rewriter inside custom processing
   # rather than after, but it'll do.
@@ -622,8 +615,8 @@ def nginx_openresty(config, do, rewriter, route_metadata):
   )
   
   utils.write_file_text('nginx/idupreecom/do_page.lua', init_lua)
-  for [src], [dest] in do(['src/aux/nginx.conf'], ['nginx/nginx.conf']):
-    os.link(src, dest)
+  #for [src], [dest] in do(['src/aux/nginx.conf'], ['nginx/nginx.conf']):
+  #  os.link(src, dest)
 
     
 if __name__ == '__main__':
