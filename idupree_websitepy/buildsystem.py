@@ -26,6 +26,7 @@ those blocks won't be run so the Python variables won't be set).
 """
 
 import itertools
+import sys
 from os import stat, utime, rename, link, mkdir, chdir, makedirs, getcwd, walk, listdir
 from os.path import join, abspath, dirname, basename, exists, relpath
 from shutil import rmtree, copyfile
@@ -42,20 +43,14 @@ def _set_mtime(fpath, mtime_ns):
 def _mtime_opt(fpath):
   try: return _mtime(fpath)
   except (FileNotFoundError, NotADirectoryError): return None
+_unix_epoch = 0
+def _max_mtime(iterable_of_mtimes):
+  return max([_unix_epoch] + list(iterable_of_mtimes))
 
 def _parent_dirs(fpath):
   while fpath != '' and fpath != dirname(fpath):
     fpath = dirname(fpath)
     yield fpath
-
-class pushd(object):
-  def __init__(self, target):
-    self.target = target
-  def __enter__(self):
-    self.source = getcwd()
-    chdir(self.target)
-  def __exit__(self, type, value, traceback):
-    chdir(self.source)
 
 def makedirs_with_mtime(dest, mtime):
   """
@@ -105,7 +100,7 @@ def generic_do(sources, dests, build_system_sources, dirs_with_already_built_stu
   If you use this directly, you specify those explicitly instead.
   """
   fullsources = itertools.chain(build_system_sources, sources)
-  latest_modified_source = max(_mtime(source) for source in fullsources)
+  latest_modified_source = _max_mtime(_mtime(source) for source in fullsources)
   # Saying to generate a file when it's already there is elided.
   if all(map(exists, dests)):
     return
@@ -185,6 +180,8 @@ def run_basic(builds_dir, build_system_sources):
     for [src], [dest] in do(['src'], ['dest']):
       ...
   """
+  if len(build_system_sources) == 0:
+    sys.stderr.write('Warning: no build system sources listed? think about whether you are risking the recompilation checker not realizing something needs to be done when you change your code but not data files in the future\n')
   dirs_with_already_built_stuff = []
   builds_dir = abspath(builds_dir)
   build_dir = join(builds_dir, 'build')
@@ -202,7 +199,7 @@ def run_basic(builds_dir, build_system_sources):
   if exists(building_old_dir):
     dirs_with_already_built_stuff.append(building_old_dir)
   mkdir(building_dir)
-  _set_mtime(building_dir, max(_mtime(source) for source in build_system_sources))
+  _set_mtime(building_dir, _max_mtime(_mtime(source) for source in build_system_sources))
   # 'do': callback used to run a build rule if rebuild is needed.
   def do(sources, dests):
     return generic_do(sources, dests, build_system_sources, dirs_with_already_built_stuff)

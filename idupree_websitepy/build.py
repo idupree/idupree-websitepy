@@ -8,18 +8,12 @@ from . import utils
 from . import errdocs
 from . import urlregexps
 from . import resource_rewriting
-from . import secrets
-from .private_configuration import cdn_resources_path, scheme_and_domain, doindexfrom, butdontindexfrom
 
 cmd = subprocess.check_call
 
-nocdn_resources_path = '/_resources/'
+# TODO delete:
 #cdn_resources_path = '//??????????.cloudfront.net/'
-
 #scheme_and_domain = 'http://www.idupree.com'
-nocdn_resources_route = scheme_and_domain+nocdn_resources_path
-canonical_resources_route = nocdn_resources_route
-
 #doindexfrom = set(map(lambda r: scheme_and_domain+r, ['/']))
 #butdontindexfrom = set(map(lambda r: scheme_and_domain+r, ['/semiprivate-page']))
 
@@ -33,8 +27,39 @@ def fake_rr_to_f(route):
   if is_fake_rr(route): return route[len(fake_resource_route):]
   else: return None
 
+class Config(object):
+  def __init__(self, *,
+    canonical_scheme_and_domain = None,
+    nocdn_resources_path = '/_resources/',
+    doindexfrom,
+    butdontindexfrom,
+    rr_hash_random_bytes,
+    nginx_hash_random_bytes
+    ):
+    """
+    canonical_scheme_and_domain: default none, example 'http://www.idupree.com'
+    .....
+    """
+    self.canonical_scheme_and_domain = canonical_scheme_and_domain
+    # just for in this build script:
+    # (should it always be something like the latter?)
+    # (if so, figure out how that interacts with how doindexfrom/butdontindexfrom
+    #  are specified!!)
+    self.hypothetical_scheme_and_domain = canonical_scheme_and_domain or 'https://hypothetical.idupree.com'
+    self.nocdn_resources_path = nocdn_resources_path
+    self.doindexfrom = doindexfrom
+    self.butdontindexfrom = butdontindexfrom
+    self.rr_hash_random_bytes = rr_hash_random_bytes
+    self.nginx_hash_random_bytes = nginx_hash_random_bytes
 
-def build():
+
+def build(config):
+  """
+  pass an instance of Config
+  TODO: make more configurable
+  TODO: fix utils.files_under parts and document
+            what is required of the caller
+  """
   os.chdir(os.path.dirname(os.path.join('.', __file__)))
   os.chdir('..')
   sources = set(filter(
@@ -42,9 +67,9 @@ def build():
       set(utils.files_under('aux')) | set(utils.files_under('priv'))))
   for do in buildsystem.run('.', sources):
     route_metadata, rewriter = \
-        custom_site_preprocessing(do)
+        custom_site_preprocessing(config, do)
 
-    nginx_openresty(do, rewriter, route_metadata)
+    nginx_openresty(config, do, rewriter, route_metadata)
 
 class RouteInfo(object):
   """
@@ -78,7 +103,7 @@ class RouteInfo(object):
     self.worth_gzipping = worth_gzipping
 #and have a base one provided by f's that is copy+added to by specific routes
 
-def custom_site_preprocessing(do):
+def custom_site_preprocessing(config, do):
   """
   Returns route_metadata, rewriter
 
@@ -108,12 +133,13 @@ def custom_site_preprocessing(do):
     else:
       route_metadata[route] = RouteInfo()
 
-  def autohead(src, dest, canonical_url):
+  def autohead(src, dest, canonical_url = None):
     #utils.file_re_sub(src, dest, b'{{:canonical}}', url.encode('utf-8'))
     # TODO test/allow alternate explicit icons.
     # My browsers don't fetch '/favicon.ico' at all.
     utils.file_re_sub(src, dest, br'((?:\n|^)[ \t]*)<!--AUTOHEAD-->',
-      br'\1<link rel="canonical" href="' + canonical_url.encode('utf-8') + b'" />' +
+      (br'\1<link rel="canonical" href="' + canonical_url.encode('utf-8') + b'" />'
+        if canonical_url != None else b'') +
       br'\1<link rel="shortcut icon" href="/favicon.ico?rr" />'
       )
   def autoobfuscate(src, dest):
@@ -211,8 +237,10 @@ def custom_site_preprocessing(do):
       f = extless_path+'.html'
       dest = join('site', f)
       # slight hack for index.html file
-      route = re.sub('/index$', '/', scheme_and_domain+'/'+extless_path)
-      url = route
+      domainrelative_route = re.sub('/index$', '/', '/'+extless_path)
+      route = config.hypothetical_scheme_and_domain + domainrelative_route
+      url = (config.canonical_scheme_and_domain + domainrelative_route
+             if config.canonical_scheme_and_domain != None else None)
       if is_markdown:
         for [_, templ], [_] in do([src, 'src/aux/pandoc-template.html'], [dest]):
           cmd(['pandoc', '--template='+templ, '-t', 'html5', '-o', dest, src])
@@ -237,14 +265,14 @@ def custom_site_preprocessing(do):
         cmd(['sassc', '--sourcemap', src, dest])
     elif re.search(r'\.(txt|asc|pdf|zip|tar\.(gz|bz2|xz)|appcache)$|^t\.gif$|^haddock-presentation-2010/', srcf):
       f = srcf
-      route = scheme_and_domain+'/'+f
+      route = config.hypothetical_scheme_and_domain+'/'+f
       dest = join('site', f)
       for _ in do([src], [dest]):
         os.link(src, dest)
     elif re.search(r'\.(3[0-9][0-9])$', srcf):
       extless_path = re.sub(r'\.(3[0-9][0-9])$', '', srcf)
       # Hmm should 'index.301' be a thing? or '.301'? or just use dirname.301
-      route = scheme_and_domain+'/'+extless_path
+      route = config.hypothetical_scheme_and_domain+'/'+extless_path
       # Alas, this code currently can't support redirecting to a resource. TODO
       add_redirect(int(srcf[-3:]), route, utils.read_file_text(src).strip())
       # Don't add the route again below
@@ -286,7 +314,7 @@ def custom_site_preprocessing(do):
     cmd(['convert'] + srcs + [dest])
   # IE < 11 needs favicon to be ico format
   add_file(f)
-  route = scheme_and_domain+'/'+f
+  route = config.hypothetical_scheme_and_domain+'/'+f
   add_route(route, f)
 
   # It's not super elegant calling the rewriter inside custom processing
@@ -294,7 +322,7 @@ def custom_site_preprocessing(do):
   rewriter = resource_rewriting.ResourceRewriter(
     rewritable_files = files_to_rewrite,
     site_source_prefix = 'site',
-    hashed_data_prepend = secrets.rr_hash_random_bytes,
+    hashed_data_prepend = config.rr_hash_random_bytes,
     do=do)
 
   nonresource_routes = {route_ for route_ in route_metadata}
@@ -345,17 +373,18 @@ def custom_site_preprocessing(do):
       if path in route_metadata:
         result.add(path)
       else:
-        if path[:len(scheme_and_domain)] == scheme_and_domain:
+        # (we don't currently try to check links to third-party websites)
+        if path[:len(config.hypothetical_scheme_and_domain)] == config.hypothetical_scheme_and_domain:
           print(route, 'links to nonexistent', ref)
           nonlocal broken_link_found
           broken_link_found = True
     return result
-  for f in butdontindexfrom:
+  for f in config.butdontindexfrom:
     # Double check that butdontindexfrom doesn't have any typoes
     assert(f in route_metadata)
   routes_robots_should_index = set(utils.make_transitive(
-      lambda f: filter(lambda f2: f2 not in butdontindexfrom, find_internal_links(f)),
-    True, True)(doindexfrom))
+      lambda f: filter(lambda f2: f2 not in config.butdontindexfrom, find_internal_links(f)),
+    True, True)(config.doindexfrom))
   if broken_link_found:
     exit(1)
 
@@ -397,13 +426,16 @@ def custom_site_preprocessing(do):
         route_metadata[route].headers.append(("Link", '<'+canonical_url+'>; rel="canonical"'))
       #rrf = fake_rr_to_f(route)
       #if rrf != None:
+      #  # canonical_resources_route similar to nocdn_resources_route or
+      #  # config.canonical_scheme_and_domain + config.nocdn_resources_path ?
       #  canonical_url = canonical_resources_route+rewriter.recall_rewritten_resource_name(rrf)
       #else:
       #  canonical_url = route
       #route_metadata[route].headers.append(("Link", '<'+canonical_url+'>; rel="canonical"'))
 
   utils.write_file_text('nocdn-resource-routes',
-    '\n'.join(nocdn_resources_route+rewriter.recall_rewritten_resource_name(fake_rr_to_f(f))
+    '\n'.join(config.hypothetical_scheme_and_domain + config.nocdn_resources_path #nocdn_resources_route?
+                + rewriter.recall_rewritten_resource_name(fake_rr_to_f(f))
               for f in resource_routes))
   utils.write_file_text('nonresource-routes', '\n'.join(nonresource_routes))
 
@@ -419,10 +451,10 @@ def custom_site_preprocessing(do):
   return route_metadata, rewriter
 
 
-def nginx_openresty(do, rewriter, route_metadata):
+def nginx_openresty(config, do, rewriter, route_metadata):
   rewritten_dir = 'rewritten-towards/nocdn-content-encoding-negotiable'
   rewriter.rewrite(rewritten_dir,
-    lambda f, o: nocdn_resources_path + f, os.link, os.link)
+    lambda f, o: config.nocdn_resources_path + f, os.link, os.link)
   # nginx_routes e.g.
   #   {'/foo': 'http://www.idupree.com/foo',
   #    '/_resources/bar.css': 'http://fake-rr.idupree.com/bar.css'
@@ -432,9 +464,9 @@ def nginx_openresty(do, rewriter, route_metadata):
     if route != None:
       rrf = fake_rr_to_f(route)
       if rrf != None:
-        nginx_routes[nocdn_resources_path+rewriter.recall_rewritten_resource_name(rrf)] = route
+        nginx_routes[config.nocdn_resources_path+rewriter.recall_rewritten_resource_name(rrf)] = route
       else:
-        nginx_routes[re.sub(r'^'+re.escape(scheme_and_domain), '', route)] = route
+        nginx_routes[re.sub(r'^'+re.escape(config.hypothetical_scheme_and_domain), '', route)] = route
   def recall_nginx_pagecontent_hash(f):
     return utils.read_file_text('nginx-pagecontent-hash/'+f)
   def recall_nginx_pagecontent_path(f, gzipped=False):
@@ -467,7 +499,7 @@ def nginx_openresty(do, rewriter, route_metadata):
     h = hashlib.sha384()
     # There's probably nothing hidden by adding a random secret here,
     # but it's also harmless.
-    h.update(secrets.nginx_hash_random_bytes)
+    h.update(config.nginx_hash_random_bytes)
     h.update(str(status).encode('ascii')+b"\n")
     # (Omit irrelevant auto server headers like "Date:")
     for k, v in headers:
