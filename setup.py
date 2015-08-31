@@ -20,10 +20,10 @@ setup(
     url='https://github.com/idupree/idupree-websitepy',
     author='idupree',
     author_email='antispam@idupree.com',
-    license='GPL3+',
+    license='MIT',
     classifiers=[
         'Development Status :: 5 - Production/Stable',
-        'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)',
+        'License :: OSI Approved :: MIT License',
         'Natural Language :: English',
         'Operating System :: POSIX',
         'Topic :: Software Development :: Build Tools',
