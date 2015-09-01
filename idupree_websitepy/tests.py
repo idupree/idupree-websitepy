@@ -62,18 +62,27 @@ class Client(asyncio.Protocol):
         #print('server closed the connection')
 
 
+num_total_requests = 0
 num_outstanding_requests = 0
-too_many_outstanding_requests = 15
+max_outstanding_requests = 8
 
 @asyncio.coroutine
 def request(ip, port, request_data):
   global num_outstanding_requests
-  while num_outstanding_requests > too_many_outstanding_requests:
+  global num_total_requests
+  num_total_requests += 1
+  request_num = num_total_requests
+  sys.stderr.write("Request {} requested; outstanding requests: {}\n".format(request_num, num_outstanding_requests))
+  while num_outstanding_requests >= max_outstanding_requests:
     yield from asyncio.sleep(0.05)
   num_outstanding_requests += 1
-  _transport, client = yield from loop().create_connection(lambda: Client(request_data), ip, port)
+  sys.stderr.write("Request {} began    ; outstanding requests: {}\n".format(request_num, num_outstanding_requests))
+  transport, client = yield from loop().create_connection(lambda: Client(request_data), ip, port)
   response = yield from client.response
+  transport.close()
   num_outstanding_requests -= 1
+  sys.stderr.write("Request {} finished ; outstanding requests: {}\n".format(request_num, num_outstanding_requests))
+  # (TODO record time taken waiting for request, and what the request was, perhaps, for speed debugging)
   return response
 
 @asyncio.coroutine
