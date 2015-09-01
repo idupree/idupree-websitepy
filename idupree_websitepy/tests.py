@@ -459,9 +459,12 @@ def test_http_response(ip, port, route, response):
 
     # TODO check this better:
     test('vary accept-encoding', lambda:test.bool('Content-Encoding' not in headers or re.search(r'Accept-Encoding', headers['Vary'])))
-    if content_type in {'text/html', 'text/css', 'application/javascript'}:
+    #if content_type in {'text/html', 'text/css', 'application/javascript'}:
+    #nope they may have charset=, so.
+    if re.search(r'text/html|text/css|application/javascript', content_type):
       test('vary accept-encoding', lambda:test.re(r'Accept-Encoding', headers['Vary']))
-    if content_type in {'image/png', 'image/jpeg'}:
+    #if content_type in {'image/png', 'image/jpeg'}:
+    if re.search(r'image/png|image/jpeg', content_type):
       test('No Vary', lambda:test.notin('Vary', headers))
 
     
