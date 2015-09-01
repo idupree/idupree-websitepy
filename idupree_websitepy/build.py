@@ -108,6 +108,9 @@ def pngs_to_ico(png_srcs, dest):
   """
   cmd(['convert'] + png_srcs + [dest])
 
+def dirname_of_this_library():
+  return os.path.dirname(os.path.abspath(__file__))
+
 def get_python_file_names_under(dirname):
   return set(filter(
       lambda f: re.search('\.py$', f),
@@ -122,9 +125,8 @@ def build(config, pre_action):
   pre_action is a function. pre_action(do) happens before other stuff
   but gets to share the build-temp directory...
   """
-  library_dir = os.path.dirname(os.path.abspath(__file__))
   sources = (set(config.list_of_compilation_source_files) | 
-             get_python_file_names_under(library_dir))
+             get_python_file_names_under(dirname_of_this_library()))
   for do in buildsystem.run(config.site_source_dir, sources):
     pre_action(do)
 
