@@ -271,6 +271,7 @@ def get_redirect_target_to_test(route):
 the_domain = 'http://www.idupree.com'
 #build_dir = '../+public-builds/build/'
 build_dir = '+site2-builds/build/'
+test_all_content_lengths = False  #slow on non-localhost connections due to 100MB+ bandwidth use
 # is this sensible?
 def dedomain(url):
   return re.sub(r'^'+re.escape(the_domain), '', url)
@@ -294,19 +295,29 @@ def is_active_content_type(t):
 
 @asyncio.coroutine
 def test_route(ip, port, route):
-    response = yield from http_request(ip, port, route)
+    method = 'GET' if test_all_content_lengths else 'HEAD'
+    response = yield from http_request(ip, port, route, method)
     resp = HttpResponse(response)
     headers = resp.headers
     status_code = resp.status_code
     content_type = headers.get('Content-Type', '')
-    body = resp.body
+
+    if method == 'GET':
+      body = resp.body
+    if method == 'HEAD' and re.search(r'text/html|text/css', content_type):
+      method = 'GET'
+      response = yield from http_request(ip, port, route, method)
+      resp = HttpResponse(response)
+      body = resp.body
 
     results = []
     test = Test(route, lambda p,d: results.append((p,d)))
 
     test('has Date', lambda:test.in_('Date', headers))
-    if 'Content-Length' in headers:
+
+    if 'Content-Length' in headers and method == 'GET':
       test('has correct Content-Length', lambda:test.eq(int(headers['Content-Length']), len(body)))
+
     test('no Server', lambda:test.notin('Server', headers))
     test('no Last-Modified', lambda:test.notin('Last-Modified', headers))
 
