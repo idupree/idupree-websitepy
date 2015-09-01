@@ -68,12 +68,12 @@ def request(ip, port, request_data):
   return (yield from client.response)
 
 @asyncio.coroutine
-def http_request(ip, port, path, method = 'GET'):
+def http_request(ip, port, path, method = 'GET', host_header = 'www.idupree.com'):
   """
   non gzipped version
   """
   return (yield from request(ip, port,
-    '{} {} HTTP/1.1\r\nConnection: close\r\nHost: www.idupree.com\r\n\r\n'.format(method, path)))
+    '{} {} HTTP/1.1\r\nConnection: close\r\nHost: {}\r\n\r\n'.format(method, path, host_header)))
 
 class statuses(object):
   unexpectedly_passed = 'unexpectedly passed'
