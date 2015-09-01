@@ -295,70 +295,75 @@ def is_active_content_type(t):
 @asyncio.coroutine
 def test_http_response(ip, port, route, response):
     resp = HttpResponse(response)
+    headers = resp.headers
+    status_code = resp.status_code
+    content_type = headers.get('Content-Type', '')
+    body = resp.body
+
     results = []
     test = Test(route, lambda p,d: results.append((p,d)))
 
-    test('has Date', lambda:test.in_('Date', resp.headers))
-    if 'Content-Length' in resp.headers:
-      test('has correct Content-Length', lambda:test.eq(int(resp.headers['Content-Length']), len(resp.body)))
-    test('no Server', lambda:test.notin('Server', resp.headers))
-    test('no Last-Modified', lambda:test.notin('Last-Modified', resp.headers))
+    test('has Date', lambda:test.in_('Date', headers))
+    if 'Content-Length' in headers:
+      test('has correct Content-Length', lambda:test.eq(int(headers['Content-Length']), len(body)))
+    test('no Server', lambda:test.notin('Server', headers))
+    test('no Last-Modified', lambda:test.notin('Last-Modified', headers))
 
     if route in existent_routes:
-      test("status 200 or such", lambda:test.in_(resp.status_code, {200, 301, 302, 303, 307, 410}))
-      if resp.status_code == 200:
-        test('has ETag', lambda:test.in_('ETag', resp.headers))
-        test('has Content-Length', lambda:test.in_('Content-Length', resp.headers))
+      test("status 200 or such", lambda:test.in_(status_code, {200, 301, 302, 303, 307, 410}))
+      if status_code == 200:
+        test('has ETag', lambda:test.in_('ETag', headers))
+        test('has Content-Length', lambda:test.in_('Content-Length', headers))
         if route in nonresource_routes:
           # TODO allow it if there are other Link: headers also:
           # search Link: headers for it.
-          test("HTTP Link rel=canonical", lambda:test.eq(resp.headers['Link'], '<http://www.idupree.com{}>; rel="canonical"'.format(route)))
+          test("HTTP Link rel=canonical", lambda:test.eq(headers['Link'], '<http://www.idupree.com{}>; rel="canonical"'.format(route)))
     else:
       # TODO allow it if there are other Link: headers also:
       # search Link: headers for it.
-      test("Has no HTTP Link rel=canonical", lambda:test.notin('Link', resp.headers))
+      test("Has no HTTP Link rel=canonical", lambda:test.notin('Link', headers))
 
     if route in status_codes_to_test:
-      test("status matches expectation", lambda:test.eq(resp.status_code,
+      test("status matches expectation", lambda:test.eq(status_code,
         get_status_code_to_test(route)))
 
     if get_redirect_target_to_test(route):
-      test("redirects to the correct place", lambda:test.eq(resp.headers['Location'],
+      test("redirects to the correct place", lambda:test.eq(headers['Location'],
         the_domain+get_redirect_target_to_test(route)))
 
     if route == '/favicon.ico':
       # An out-of-date favicon isn't very serious
-      test('favicon cacheable for medium duration', lambda:test.re(r'^max-age=[0-9]{6}$', resp.headers["Cache-Control"]))
+      test('favicon cacheable for medium duration', lambda:test.re(r'^max-age=[0-9]{6}$', headers["Cache-Control"]))
       # IE < 11 only supports ico favicons
-      test('favicon is ico', lambda:test.eq(resp.headers['Content-Type'], 'image/x-icon'))
+      test('favicon is ico', lambda:test.eq(content_type, 'image/x-icon'))
 
     elif route not in resource_routes:
-      test('not lengthily cacheable', lambda:test.notre(r'max-age=[0-9]{5,}', resp.headers.get("Cache-Control", '')))
+      test('not lengthily cacheable', lambda:test.notre(r'max-age=[0-9]{5,}', headers.get("Cache-Control", '')))
 
-    test('noarchive', lambda:test.re(r'noarchive', resp.headers['X-Robots-Tag']))
+    test('noarchive', lambda:test.re(r'noarchive', headers['X-Robots-Tag']))
     if re.search(r'^/_resources/style\.[^/]*\.css$|^/$|^/README$|^/pgp$', route):
       # test that a public resource file is not mistakenly specified noindex
-      test('indexable', lambda:test.notre(r'noindex', resp.headers['X-Robots-Tag']))
+      test('indexable', lambda:test.notre(r'noindex', headers['X-Robots-Tag']))
     if the_domain+route in private_configuration.doindexfrom:
       # At minimum these pages should lack noindex
-      test('indexable', lambda:test.notre(r'noindex', resp.headers['X-Robots-Tag']))
+      test('indexable', lambda:test.notre(r'noindex', headers['X-Robots-Tag']))
     if the_domain+route in private_configuration.butdontindexfrom:
       # At minimum these pages should have noindex
-      test('noindex', lambda:test.re(r'noindex', resp.headers['X-Robots-Tag']))
+      test('noindex', lambda:test.re(r'noindex', headers['X-Robots-Tag']))
 
     #TODO list types that are inactive instead, for better caution
-    if is_active_content_type(resp.headers.get('Content-Type')):
-      test('X-Frame-Options: SAMEORIGIN', lambda:test.eq(resp.headers['X-Frame-Options'], 'SAMEORIGIN'))
+    if is_active_content_type(content_type):
+      test('X-Frame-Options: SAMEORIGIN', lambda:test.eq(headers['X-Frame-Options'], 'SAMEORIGIN'))
     
-    if re.search(r'text/html', resp.headers.get('Content-Type', '')):
-      test('content-type: text/html; charset=utf-8', lambda:test.eq(resp.headers['Content-Type'], 'text/html; charset=utf-8'))
-      test('contains charset utf-8', lambda:test.re(br'''charset=['"]?utf-8''', resp.body))
-      test('does not refer to an SCSS mime type', lambda:test.notre(br'text/scss', resp.body))
-      test('does not contain @mixin or @include', lambda:test.notre(br'@mixin|@include', resp.body))
+    if re.search(r'text/html', content_type):
+      test('content-type: text/html; charset=utf-8', lambda:test.eq(content_type, 'text/html; charset=utf-8'))
+      test('contains charset utf-8', lambda:test.re(br'''charset=['"]?utf-8''', body))
+      test('does not refer to an SCSS mime type', lambda:test.notre(br'text/scss', body))
+      test('does not contain @mixin or @include', lambda:test.notre(br'@mixin|@include', body))
       if route in existent_routes:
-        test('has rel=canonical of idupree.com', lambda:test.re(br'''<link rel="canonical" href="http://www\.idupree\.com'''+re.escape(route).encode('utf-8')+br'"\s*/?>', resp.body))
+        test('has rel=canonical of idupree.com', lambda:test.re(br'''<link rel="canonical" href="http://www\.idupree\.com'''+re.escape(route).encode('utf-8')+br'"\s*/?>', body))
       else:
-        test('has no <link rel="canonical">', lambda:test.notre(br'''<link rel="canonical"''', resp.body))
+        test('has no <link rel="canonical">', lambda:test.notre(br'''<link rel="canonical"''', body))
 
       # Unfortunately, the validator refuses to validate the HTML contents
       # of pages whose HTTP status is 404.
@@ -381,16 +386,15 @@ def test_http_response(ip, port, route, response):
         #validate_req = ('''GET /?parser=html5&out=json&doc={} HTTP/1.0\r\n\r\n'''
         #    .format(urllib.parse.quote(tested_page_path, '')))
 
-        # Make sure not to get number of codepoints by accident - we want number of octets
-        assert(isinstance(resp.body, bytes))
-        body_content_type = resp.headers.get('Content-Type', '')
-        body_content_length = len(resp.body)
+        # Make sure not to get number of codepoints by accident
+        # when taking len(body) - we want number of octets
+        assert(isinstance(body, bytes))
         validate_req = (
           b'POST /?parser=html5&out=json HTTP/1.0\r\n'+
-          b'Content-Type: '+resp.headers.get('Content-Type', '').encode('utf-8')+b'\r\n'+
-          b'Content-Length: '+str(len(resp.body)).encode('utf-8')+b'\r\n'+
+          b'Content-Type: '+content_type.encode('utf-8')+b'\r\n'+
+          b'Content-Length: '+str(len(body)).encode('utf-8')+b'\r\n'+
           b'\r\n'+
-          resp.body
+          body
           )
         #TODO flexible IP/ports for running the validator
         validation_response = HttpResponse((yield from request('127.0.0.1', 8888, validate_req)))
@@ -426,39 +430,39 @@ def test_http_response(ip, port, route, response):
         except (ValueError, KeyError):
           test('HTML5 validator working as expected', lambda:test.eq(False, validation_response.body))
     
-    if re.search(r'text/css', resp.headers.get('Content-Type', '')):
-      test('content-type: text/css; charset=utf-8', lambda:test.eq(resp.headers['Content-Type'], 'text/css; charset=utf-8'))
-      test('begins with @charset "UTF-8";', lambda:test.re(br'^@charset "UTF-8";', resp.body))
-      test('does not contain @mixin or @include', lambda:test.notre(br'@mixin|@include', resp.body))
+    if re.search(r'text/css', content_type):
+      test('content-type: text/css; charset=utf-8', lambda:test.eq(content_type, 'text/css; charset=utf-8'))
+      test('begins with @charset "UTF-8";', lambda:test.re(br'^@charset "UTF-8";', body))
+      test('does not contain @mixin or @include', lambda:test.notre(br'@mixin|@include', body))
 
-    if re.search(r'javascript', resp.headers.get('Content-Type', '')):
-      test('content-type: application/javascript; charset=utf-8', lambda:test.eq(resp.headers['Content-Type'], 'application/javascript; charset=utf-8'))
+    if re.search(r'javascript', content_type):
+      test('content-type: application/javascript; charset=utf-8', lambda:test.eq(content_type, 'application/javascript; charset=utf-8'))
       
 
     if route in resource_routes:
-      test('far future Cache-Control', lambda:test.re(r'^max-age=[0-9]{7,8}$', resp.headers["Cache-Control"]))
+      test('far future Cache-Control', lambda:test.re(r'^max-age=[0-9]{7,8}$', headers["Cache-Control"]))
       test('obscure name (or /t.gif)', lambda:test.re(r'^/t\.gif$|\.[-0-9a-zA-Z_]{15}([./]|$)', route))
 
     if route == '/':
       #TODO create my own local spampoison pages
-      test('front page contains spampoison', lambda:test.re(br'spampoison', resp.body))
+      test('front page contains spampoison', lambda:test.re(br'spampoison', body))
 
     if route == '/robots.txt':
-      test('reasonable robots.txt Cache-Control', lambda:test.notin('Expires', resp.headers))
-      test('reasonable robots.txt Cache-Control', lambda:test.eq(resp.headers['Cache-Control'], 'max-age=15, must-revalidate'))
+      test('reasonable robots.txt Cache-Control', lambda:test.notin('Expires', headers))
+      test('reasonable robots.txt Cache-Control', lambda:test.eq(headers['Cache-Control'], 'max-age=15, must-revalidate'))
 
     if route == '/favicon.ico':
       #or TODO redirect? I guess I don't gain much with that, since
       # revalidation will be needed anyway and favicons aren't big
       # enough that it's worth cdn'ing them on top of the http 30x probably
-      test('site has a favicon', lambda:test.eq(resp.status_code, 200))
+      test('site has a favicon', lambda:test.eq(status_code, 200))
 
     # TODO check this better:
-    test('vary accept-encoding', lambda:test.bool('Content-Encoding' not in resp.headers or re.search(r'Accept-Encoding', resp.headers['Vary'])))
-    if resp.headers.get('Content-Type') in {'text/html', 'text/css', 'application/javascript'}:
-      test('vary accept-encoding', lambda:test.re(r'Accept-Encoding', resp.headers['Vary']))
-    if resp.headers.get('Content-Type') in {'image/png', 'image/jpeg'}:
-      test('No Vary', lambda:test.notin('Vary', resp.headers))
+    test('vary accept-encoding', lambda:test.bool('Content-Encoding' not in headers or re.search(r'Accept-Encoding', headers['Vary'])))
+    if content_type in {'text/html', 'text/css', 'application/javascript'}:
+      test('vary accept-encoding', lambda:test.re(r'Accept-Encoding', headers['Vary']))
+    if content_type in {'image/png', 'image/jpeg'}:
+      test('No Vary', lambda:test.notin('Vary', headers))
 
     
 
