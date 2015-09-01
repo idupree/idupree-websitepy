@@ -62,10 +62,19 @@ class Client(asyncio.Protocol):
         #print('server closed the connection')
 
 
+num_outstanding_requests = 0
+too_many_outstanding_requests = 15
+
 @asyncio.coroutine
 def request(ip, port, request_data):
+  global num_outstanding_requests
+  while num_outstanding_requests > too_many_outstanding_requests:
+    yield from asyncio.sleep(0.05)
+  num_outstanding_requests += 1
   _transport, client = yield from loop().create_connection(lambda: Client(request_data), ip, port)
-  return (yield from client.response)
+  response = yield from client.response
+  num_outstanding_requests -= 1
+  return response
 
 @asyncio.coroutine
 def http_request(ip, port, path, method = 'GET', host_header = 'www.idupree.com'):
