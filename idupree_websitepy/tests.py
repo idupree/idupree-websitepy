@@ -293,7 +293,8 @@ def is_active_content_type(t):
   return t and re.search(r'text/html|application/xhtml+xml|image/svg+xml', t)
 
 @asyncio.coroutine
-def test_http_response(ip, port, route, response):
+def test_route(ip, port, route):
+    response = yield from http_request(ip, port, route)
     resp = HttpResponse(response)
     headers = resp.headers
     status_code = resp.status_code
@@ -475,10 +476,11 @@ def test_http_response(ip, port, route, response):
 def do_tests(ip, port):
 
   @asyncio.coroutine
-  def test_route(route):
-    return (yield from test_http_response(ip, port, route, (yield from http_request(ip, port, route))))
+  def test_route_here(route):
+    return (yield from test_route(ip, port, route))
+    #return (yield from test_http_response(ip, port, route, (yield from http_request(ip, port, route))))
 
-  test_results = map(asyncio.Task, map(test_route, tested_routes))
+  test_results = map(asyncio.Task, map(test_route_here, tested_routes))
 
   results, [] = (yield from asyncio.wait(test_results))
   results = map(lambda x: x.result(), results)
