@@ -30,7 +30,8 @@ class HttpResponse(object):
 
 
 
-loop = asyncio.get_event_loop()
+def loop():
+    return asyncio.get_event_loop()
 
 class Client(asyncio.Protocol):
     def __init__(self, req):
@@ -60,9 +61,16 @@ class Client(asyncio.Protocol):
 
 @asyncio.coroutine
 def request(ip, port, request_data):
-  _transport, client = yield from loop.create_connection(lambda: Client(request_data), ip, port)
+  _transport, client = yield from loop().create_connection(lambda: Client(request_data), ip, port)
   return (yield from client.response)
 
+@asyncio.coroutine
+def http_request(ip, port, path, method = 'GET'):
+  """
+  non gzipped version
+  """
+  return (yield from request(ip, port,
+    method+' {} HTTP/1.1\r\nConnection: close\r\nHost: www.idupree.com\r\n\r\n'.format(path)))
 
 class statuses(object):
   unexpectedly_passed = 'unexpectedly passed'
@@ -258,6 +266,8 @@ def get_redirect_target_to_test(route):
 
 
 the_domain = 'http://www.idupree.com'
+#build_dir = '../+public-builds/build/'
+build_dir = '+site2-builds/build/'
 # is this sensible?
 def dedomain(url):
   return re.sub(r'^'+re.escape(the_domain), '', url)
@@ -266,9 +276,9 @@ os.chdir(os.path.dirname(os.path.join('.', __file__)))
 os.chdir('..')
 # The transparent gif will never change meaning, so it's fine
 # as a well-known nigh-forever-cacheable name.
-with open('../+public-builds/build/nocdn-resource-routes', 'r') as f:
+with open(os.path.join(build_dir, 'nocdn-resource-routes'), 'r') as f:
   resource_routes = set(map(dedomain, f.read().split('\n'))) | {'/t.gif'}
-with open('../+public-builds/build/nonresource-routes', 'r') as f:
+with open(os.path.join(build_dir, 'nonresource-routes'), 'r') as f:
   nonresource_routes = set(map(dedomain, f.read().split('\n')))
 
 existent_routes = resource_routes | nonresource_routes
@@ -365,18 +375,18 @@ def test_http_response(ip, port, route, response):
           # Assume messages are bad unless we've seen them and decided
           # they're okay.  The validator mostly only emits messages for
           # actual problems.
-          # Unfortunately Twine-generated HTML does not validate at all.
           is_twine = False
           def message_is_alright(message):
-            # This validation error is deliberate in an attempt to reduce
-            # spambot email harvesting.  The nonconformance appears not to
-            # cause issues in common browsers.
+            # Unfortunately Twine-generated HTML does not validate at all.
             nonlocal is_twine
             if is_twine:
               return True
             if None != re.search(r'^Element “tw-story”', message["message"]):
               is_twine = True
               return True
+            # This validation error is deliberate in an attempt to reduce
+            # spambot email harvesting.  The nonconformance appears not to
+            # cause issues in common browsers.
             return None != re.search(
               r'^Bad value “maILtO:.*” for attribute “href” on element “a”: Control character in path component\.$',
               message["message"],
@@ -429,17 +439,10 @@ def test_http_response(ip, port, route, response):
 
 @asyncio.coroutine
 def do_tests(ip, port):
-  @asyncio.coroutine
-  def get(path):
-    """
-    non gzipped version
-    """
-    return (yield from request(ip, port,
-      'GET {} HTTP/1.1\r\nConnection: close\r\nHost: www.idupree.com\r\n\r\n'.format(path)))
 
   @asyncio.coroutine
   def test_route(route):
-    return (yield from test_http_response(ip, port, route, (yield from get(route))))
+    return (yield from test_http_response(ip, port, route, (yield from http_request(ip, port, route))))
 
   test_results = map(asyncio.Task, map(test_route, tested_routes))
 
@@ -457,6 +460,12 @@ def do_tests(ip, port):
       print(k+': '+str(v))
 
 
-c = do_tests('127.0.0.1', 80)
-loop.run_until_complete(c)
+def main():
+  #c = do_tests('127.0.0.1', 80)
+  c = do_tests('www.idupree.com', 80)
+  loop().run_until_complete(c)
+
+if __name__ == '__main__':
+  main()
+
 
