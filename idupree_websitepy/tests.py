@@ -36,13 +36,16 @@ def loop():
 class Client(asyncio.Protocol):
     def __init__(self, req):
         super(Client, self).__init__()
-        self.req = req
+        if isinstance(req, bytes):
+          self.req = req
+        else:
+          self.req = req.encode('utf-8')
         self.response = asyncio.Future()
         self.partial_response = bytearray()
 
     def connection_made(self, transport):
         #print('server established connection')
-        transport.write(self.req.encode('utf-8'))
+        transport.write(self.req)
         #print('data sent: {}'.format(self.message))
 
     def data_received(self, data):
@@ -70,7 +73,7 @@ def http_request(ip, port, path, method = 'GET'):
   non gzipped version
   """
   return (yield from request(ip, port,
-    method+' {} HTTP/1.1\r\nConnection: close\r\nHost: www.idupree.com\r\n\r\n'.format(path)))
+    '{} {} HTTP/1.1\r\nConnection: close\r\nHost: www.idupree.com\r\n\r\n'.format(method, path)))
 
 class statuses(object):
   unexpectedly_passed = 'unexpectedly passed'
@@ -360,11 +363,35 @@ def test_http_response(ip, port, route, response):
       # Unfortunately, the validator refuses to validate the HTML contents
       # of pages whose HTTP status is 404.
       if route in existent_routes:
+        # POST body now is the preferred way to use the validator,
+        # it lets you specify Content-Type, and the remote-request
+        # mechanism was having random time outs when testing hundreds
+        # of connections at once to my server remotely (with no way
+        # to configure the timeout interval that I saw).
+        #
+        # https://github.com/validator/validator/wiki/Service%3A-Input%3A-POST-body
+        #
+        # So this code no longer uses the GET method
+        # https://github.com/validator/validator/wiki/Service%3A-Input%3A-GET
+        # as follows.
+        #
         # The validator is slightly unhappy about redundant ":80" in URLs
-        tested_page_path = ('http://{}:{}{}'.format(ip, port, route) if port != 80 else
-                            'http://{}{}'.format(ip, route))
-        validate_req = ('''GET /?parser=html5&out=json&doc={} HTTP/1.0\r\n\r\n'''
-            .format(urllib.parse.quote(tested_page_path, '')))
+        #tested_page_path = ('http://{}:{}{}'.format(ip, port, route) if port != 80 else
+        #                    'http://{}{}'.format(ip, route))
+        #validate_req = ('''GET /?parser=html5&out=json&doc={} HTTP/1.0\r\n\r\n'''
+        #    .format(urllib.parse.quote(tested_page_path, '')))
+
+        # Make sure not to get number of codepoints by accident - we want number of octets
+        assert(isinstance(resp.body, bytes))
+        body_content_type = resp.headers.get('Content-Type', '')
+        body_content_length = len(resp.body)
+        validate_req = (
+          b'POST /?parser=html5&out=json HTTP/1.0\r\n'+
+          b'Content-Type: '+resp.headers.get('Content-Type', '').encode('utf-8')+b'\r\n'+
+          b'Content-Length: '+str(len(resp.body)).encode('utf-8')+b'\r\n'+
+          b'\r\n'+
+          resp.body
+          )
         #TODO flexible IP/ports for running the validator
         validation_response = HttpResponse((yield from request('127.0.0.1', 8888, validate_req)))
         test('HTML5 validator working',
