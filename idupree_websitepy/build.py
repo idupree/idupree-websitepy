@@ -33,6 +33,7 @@ class Config(object):
     site_document_root_relative_to_source_dir = '.',
     pandoc_template_relative_to_source_dir = None,
     pandoc_command = 'pandoc',
+    sassc_command = 'sassc',
     list_of_compilation_source_files,
     canonical_scheme_and_domain = None,
     nocdn_resources_path = '/_resources/',
@@ -79,6 +80,7 @@ class Config(object):
     self.site_document_root = join(site_source_dir, site_document_root_relative_to_source_dir)
     self.pandoc_template_relative_to_source_dir = pandoc_template_relative_to_source_dir
     self.pandoc_command = pandoc_command
+    self.sassc_command = sassc_command
     self.list_of_compilation_source_files = list_of_compilation_source_files
     self.canonical_scheme_and_domain = canonical_scheme_and_domain
     # just for in this build script:
@@ -334,7 +336,7 @@ def custom_site_preprocessing(config, do):
         #the correct set of dependencies to do(), but sassc is pretty fast
         #so I'll run it every time.
         # Creates both f and f_map:
-        cmd(['sassc', '--sourcemap', src, dest])
+        cmd([config.sassc_command, '--sourcemap', src, dest])
     elif re.search(r'\.(txt|asc|pdf|zip|tar\.(gz|bz2|xz)|appcache)$|^t\.gif$|^favicon.ico$|^haddock-presentation-2010/', srcf):
       f = srcf
       route = config.hypothetical_scheme_and_domain+'/'+f
