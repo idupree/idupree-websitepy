@@ -2,13 +2,14 @@
 import re, traceback, sys, os, collections, urllib.parse, json
 import asyncio
 
-from . import private_configuration
-
 # pip3 install --user http-parser
 try:
     from http_parser.parser import HttpParser
 except ImportError:
     from http_parser.pyparser import HttpParser
+
+# we expect a Config object such as idupree_websitepy.build.Config
+#from .build import Config
 
 
 #attr kind: Int,  could be 0 to parseonly requests,
@@ -67,7 +68,7 @@ num_outstanding_requests = 0
 max_outstanding_requests = 8
 
 @asyncio.coroutine
-def request(ip, port, request_data):
+def request(host, port, request_data):
   global num_outstanding_requests
   global num_total_requests
   num_total_requests += 1
@@ -77,7 +78,7 @@ def request(ip, port, request_data):
     yield from asyncio.sleep(0.05)
   num_outstanding_requests += 1
   sys.stderr.write("Request {} began    ; outstanding requests: {}\n".format(request_num, num_outstanding_requests))
-  transport, client = yield from loop().create_connection(lambda: Client(request_data), ip, port)
+  transport, client = yield from loop().create_connection(lambda: Client(request_data), host, port)
   response = yield from client.response
   transport.close()
   num_outstanding_requests -= 1
@@ -86,11 +87,14 @@ def request(ip, port, request_data):
   return response
 
 @asyncio.coroutine
-def http_request(ip, port, path, method = 'GET', host_header = 'www.idupree.com'):
+def http_request(host, port, path, method = 'GET', host_header = None):
   """
   non gzipped version
+  host_header defaults to host
   """
-  return (yield from request(ip, port,
+  if host_header == None:
+    host_header = host
+  return (yield from request(host, port,
     '{} {} HTTP/1.1\r\nConnection: close\r\nHost: {}\r\n\r\n'.format(method, path, host_header)))
 
 class statuses(object):
@@ -310,9 +314,9 @@ def is_active_content_type(t):
   return t and re.search(r'text/html|application/xhtml+xml|image/svg+xml', t)
 
 @asyncio.coroutine
-def test_route(ip, port, route):
+def test_route(config, route):
     method = 'GET' if test_all_content_lengths else 'HEAD'
-    response = yield from http_request(ip, port, route, method)
+    response = yield from http_request(config.test_host, config.test_port, route, method, config.test_host_header)
     resp = HttpResponse(response)
     headers = resp.headers
     status_code = resp.status_code
@@ -322,7 +326,7 @@ def test_route(ip, port, route):
       body = resp.body
     if method == 'HEAD' and re.search(r'text/html|text/css', content_type):
       method = 'GET'
-      response = yield from http_request(ip, port, route, method)
+      response = yield from http_request(config.test_host, config.test_port, route, method, config.test_host_header)
       resp = HttpResponse(response)
       body = resp.body
 
@@ -372,10 +376,10 @@ def test_route(ip, port, route):
     if re.search(r'^/_resources/style\.[^/]*\.css$|^/$|^/README$|^/pgp$', route):
       # test that a public resource file is not mistakenly specified noindex
       test('indexable', lambda:test.notre(r'noindex', headers['X-Robots-Tag']))
-    if the_domain+route in private_configuration.doindexfrom:
+    if the_domain+route in config.doindexfrom:
       # At minimum these pages should lack noindex
       test('indexable', lambda:test.notre(r'noindex', headers['X-Robots-Tag']))
-    if the_domain+route in private_configuration.butdontindexfrom:
+    if the_domain+route in config.butdontindexfrom:
       # At minimum these pages should have noindex
       test('noindex', lambda:test.re(r'noindex', headers['X-Robots-Tag']))
 
@@ -500,12 +504,11 @@ def test_route(ip, port, route):
     return results
 
 @asyncio.coroutine
-def do_tests(ip, port):
+def do_tests(config):
 
   @asyncio.coroutine
   def test_route_here(route):
-    return (yield from test_route(ip, port, route))
-    #return (yield from test_http_response(ip, port, route, (yield from http_request(ip, port, route))))
+    return (yield from test_route(config, route))
 
   test_results = map(asyncio.Task, map(test_route_here, tested_routes))
 
@@ -522,8 +525,8 @@ def do_tests(ip, port):
     if v > 0:
       print(k+': '+str(v))
 
-def test(ip, port):
-  c = do_tests(ip, port)
+def test(config):
+  c = do_tests(config)
   loop().run_until_complete(c)
 
 def main():

@@ -43,7 +43,10 @@ class Config(object):
     doindexfrom,
     butdontindexfrom,
     rr_hash_random_bytes,
-    nginx_hash_random_bytes
+    nginx_hash_random_bytes,
+    test_host = None,
+    test_port = None,
+    test_host_header = None
     ):
     """
     os.path.join(site_source_dir, site_document_root_relative_to_source_dir):
@@ -104,6 +107,10 @@ class Config(object):
     self.butdontindexfrom = butdontindexfrom
     self.rr_hash_random_bytes = rr_hash_random_bytes
     self.nginx_hash_random_bytes = nginx_hash_random_bytes
+
+    self.test_host = test_host
+    self.test_port = test_port
+    self.test_host_header = test_host_header
 
 def svg_to_png(src, dest, width, height):
   cmd(['inkscape', '--without-gui', '--export-png='+dest,
