@@ -41,6 +41,5 @@ setup(
         (['asyncio'] if sys.version_info < (3,4) else [])
     ),
     data_files=[],
-    entry_points={},
 )
 
