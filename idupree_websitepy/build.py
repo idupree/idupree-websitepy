@@ -301,6 +301,10 @@ def custom_site_preprocessing(config, do):
       # mimetypes.guess_type guesses wrong here:
       if re.search(r'\.(pub)?key\.asc$', f):
         mime = 'application/pgp-keys'
+      elif re.search(r'\.ico$', f):
+        # https://en.wikipedia.org/wiki/ICO_%28file_format%29#MIME_type
+        # http://stackoverflow.com/q/1444975
+        mime = 'image/x-icon'
       else:
         mime, content = mimetypes.guess_type(f)
         if content != None or mime == None:
