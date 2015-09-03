@@ -2,6 +2,7 @@
 import os, os.path, subprocess, re, base64, hashlib, mimetypes, copy
 from os.path import join, dirname, normpath, exists
 from urllib.parse import urljoin, urldefrag, urlparse
+from distutils.spawn import find_executable
 
 from . import buildsystem
 from . import utils
@@ -27,13 +28,15 @@ def fake_rr_to_f(route):
   if is_fake_rr(route): return route[len(fake_resource_route):]
   else: return None
 
+class SasscDefault: pass
+
 class Config(object):
   def __init__(self, *,
     site_source_dir,
     site_document_root_relative_to_source_dir = '.',
     pandoc_template_relative_to_source_dir = None,
     pandoc_command = 'pandoc',
-    sassc_command = 'sassc',
+    sassc_command = SasscDefault,
     list_of_compilation_source_files,
     canonical_scheme_and_domain = None,
     nocdn_resources_path = '/_resources/',
@@ -80,7 +83,15 @@ class Config(object):
     self.site_document_root = join(site_source_dir, site_document_root_relative_to_source_dir)
     self.pandoc_template_relative_to_source_dir = pandoc_template_relative_to_source_dir
     self.pandoc_command = pandoc_command
-    self.sassc_command = sassc_command
+    if sassc_command != SasscDefault:
+      self.sassc_command = sassc_command
+    elif find_executable('sassc'):
+      self.sassc_command = 'sassc'
+    elif find_executable('sass'):
+      self.sassc_command = 'sass'
+    else:
+      self.sassc_command = None
+
     self.list_of_compilation_source_files = list_of_compilation_source_files
     self.canonical_scheme_and_domain = canonical_scheme_and_domain
     # just for in this build script:
@@ -330,6 +341,7 @@ def custom_site_preprocessing(config, do):
       if exists(join(src_document_root, f)):
         f = None
       else:
+        assert(config.sassc_command) #install `sassc` (preferred) or `sass`
         f_map = f+'.map'
         dest = join('site', f)
         #I don't have a scss dependency chaser, so I can't easily give
