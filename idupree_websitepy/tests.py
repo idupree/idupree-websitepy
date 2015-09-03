@@ -457,8 +457,8 @@ def test_route(config, route):
             # Pandoc doesn't seem to have a way to put a <h2>Footnotes</h2>
             # at the top of its footnotes, unless I missed something :-(
             if (message['type'] == 'info' and
-                re.search(message['message'], r'^Section lacks heading\.') and
-                re.search(message['extract'], r'<section class="footnotes">')):
+                re.search(r'^Section lacks heading\.', message['message']) and
+                re.search(r'<section class="footnotes">', message['extract'])):
               return True
             return False
 
