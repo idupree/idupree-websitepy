@@ -449,10 +449,19 @@ def test_route(config, route):
             # This validation error is deliberate in an attempt to reduce
             # spambot email harvesting.  The nonconformance appears not to
             # cause issues in common browsers.
-            return None != re.search(
-              r'^Bad value “maILtO:.*” for attribute “href” on element “a”: Control character in path component\.$',
-              message["message"],
-              re.DOTALL)
+            if re.search(
+                r'^Bad value “maILtO:.*” for attribute “href” on element “a”: Illegal character in scheme data: not a URL code point\.$',
+                message["message"],
+                re.DOTALL):
+              return True
+            # Pandoc doesn't seem to have a way to put a <h2>Footnotes</h2>
+            # at the top of its footnotes, unless I missed something :-(
+            if (message['type'] == 'info' and
+                re.search(message['message'], r'^Section lacks heading\.') and
+                re.search(message['extract'], r'<section class="footnotes">')):
+              return True
+            return False
+
           def message_indicates_a_bad_thing(message):
             return not message_is_alright(message)
           bad_messages = tuple(filter(message_indicates_a_bad_thing, messages))
