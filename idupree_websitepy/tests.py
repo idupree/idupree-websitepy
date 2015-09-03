@@ -312,6 +312,12 @@ tested_routes = existent_routes | set(status_codes_to_test)
 def is_active_content_type(t):
   return t and re.search(r'text/html|application/xhtml+xml|image/svg+xml', t)
 
+def test_scheme_domain_port_string_for_redirects(config):
+  return (
+    'http://' +
+    config.test_host_header +   #or canonical? or?
+    (':'+str(config.test_port) if config.test_port != 80 else ''))
+
 @asyncio.coroutine
 def test_route(config, route):
     method = 'GET' if config.test_all_content_lengths else 'HEAD'
@@ -360,7 +366,7 @@ def test_route(config, route):
 
     if get_redirect_target_to_test(route):
       test("redirects to the correct place", lambda:test.eq(headers['Location'],
-        config.canonical_scheme_and_domain+get_redirect_target_to_test(route)))
+        test_scheme_domain_port_string_for_redirects(config)+get_redirect_target_to_test(route)))
 
     if route == '/favicon.ico':
       # An out-of-date favicon isn't very serious
