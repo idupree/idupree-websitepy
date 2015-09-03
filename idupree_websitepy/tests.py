@@ -290,13 +290,12 @@ def get_redirect_target_to_test(route):
 #also what about multi domain routes
 
 
-the_domain = 'http://www.idupree.com'
 #build_dir = '../+public-builds/build/'
 build_dir = './+site-builds/build/'
-test_all_content_lengths = False  #slow on non-localhost connections due to 100MB+ bandwidth use
+
 # is this sensible?
 def dedomain(url):
-  return re.sub(r'^'+re.escape(the_domain), '', url)
+  return re.sub(r'^(https?|file)://[^/]*', '', url)
 
 # The transparent gif will never change meaning, so it's fine
 # as a well-known nigh-forever-cacheable name.
@@ -315,7 +314,7 @@ def is_active_content_type(t):
 
 @asyncio.coroutine
 def test_route(config, route):
-    method = 'GET' if test_all_content_lengths else 'HEAD'
+    method = 'GET' if config.test_all_content_lengths else 'HEAD'
     response = yield from http_request(config.test_host, config.test_port, route, method, config.test_host_header)
     resp = HttpResponse(response)
     headers = resp.headers
@@ -361,7 +360,7 @@ def test_route(config, route):
 
     if get_redirect_target_to_test(route):
       test("redirects to the correct place", lambda:test.eq(headers['Location'],
-        the_domain+get_redirect_target_to_test(route)))
+        config.canonical_scheme_and_domain+get_redirect_target_to_test(route)))
 
     if route == '/favicon.ico':
       # An out-of-date favicon isn't very serious
@@ -376,10 +375,10 @@ def test_route(config, route):
     if re.search(r'^/_resources/style\.[^/]*\.css$|^/$|^/README$|^/pgp$', route):
       # test that a public resource file is not mistakenly specified noindex
       test('indexable', lambda:test.notre(r'noindex', headers['X-Robots-Tag']))
-    if the_domain+route in config.doindexfrom:
+    if config.canonical_scheme_and_domain + route in config.doindexfrom:
       # At minimum these pages should lack noindex
       test('indexable', lambda:test.notre(r'noindex', headers['X-Robots-Tag']))
-    if the_domain+route in config.butdontindexfrom:
+    if config.canonical_scheme_and_domain + route in config.butdontindexfrom:
       # At minimum these pages should have noindex
       test('noindex', lambda:test.re(r'noindex', headers['X-Robots-Tag']))
 
