@@ -288,14 +288,12 @@ def get_redirect_target_to_test(route):
 
 the_domain = 'http://www.idupree.com'
 #build_dir = '../+public-builds/build/'
-build_dir = '+site2-builds/build/'
+build_dir = './+site-builds/build/'
 test_all_content_lengths = False  #slow on non-localhost connections due to 100MB+ bandwidth use
 # is this sensible?
 def dedomain(url):
   return re.sub(r'^'+re.escape(the_domain), '', url)
 
-os.chdir(os.path.dirname(os.path.join('.', __file__)))
-os.chdir('..')
 # The transparent gif will never change meaning, so it's fine
 # as a well-known nigh-forever-cacheable name.
 with open(os.path.join(build_dir, 'nocdn-resource-routes'), 'r') as f:
@@ -524,13 +522,15 @@ def do_tests(ip, port):
     if v > 0:
       print(k+': '+str(v))
 
-
-def main():
-  #c = do_tests('127.0.0.1', 80)
-  c = do_tests('www.idupree.com', 80)
+def test(ip, port):
+  c = do_tests(ip, port)
   loop().run_until_complete(c)
 
-if __name__ == '__main__':
-  main()
+def main():
+  test('127.0.0.1', 80)
+  #test('www.idupree.com', 80)
+
+#if __name__ == '__main__':
+#  main()
 
 
