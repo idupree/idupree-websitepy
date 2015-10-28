@@ -33,6 +33,7 @@ class SasscDefault: pass
 class Config(object):
   def __init__(self, *,
     site_source_dir,
+    build_output_dir = None,
     site_document_root_relative_to_source_dir = '.',
     pandoc_template_relative_to_source_dir = None,
     pandoc_command = 'pandoc',
@@ -60,6 +61,12 @@ class Config(object):
       You might make them be separate if you process some source files
       that you want to make it clear they won't be directly served to
       the user.  The document root *must* be within the source dir.
+
+    build_output_dir: where to put build outputs. Defaults to
+      a sibling of site_source_dir named +xxxxxx-builds where xxxxxx
+      is basename(site_source_dir).  Its children will be 'build' and
+      some temporary directory names meant to keep rebuilds more atomic
+      (build failure doesn't destroy your old build data).
 
     pandoc_template_relative_to_source_dir: similarly. Used if specified
       and you have .md markdown content.
@@ -107,6 +114,7 @@ class Config(object):
     self.site_source_dir = site_source_dir
     self.site_document_root_relative_to_source_dir = site_document_root_relative_to_source_dir
     self.site_document_root = join(site_source_dir, site_document_root_relative_to_source_dir)
+    self.build_output_dir = build_output_dir
     self.pandoc_template_relative_to_source_dir = pandoc_template_relative_to_source_dir
     self.pandoc_command = pandoc_command
     if sassc_command != SasscDefault:
@@ -186,7 +194,8 @@ def build(config, pre_action = None):
   """
   sources = (set(config.list_of_compilation_source_files) | 
              get_python_file_names_under(dirname_of_this_library()))
-  for do in buildsystem.run(config.site_source_dir, sources):
+  for do in buildsystem.run(config.site_source_dir, sources,
+                            config.build_output_dir):
     if pre_action != None:
       pre_action(do)
 
