@@ -142,7 +142,7 @@ def get_python_file_names_under(dirname):
       lambda f: re.search('\.py$', f),
       set(utils.files_under(dirname))))
 
-def build(config, pre_action):
+def build(config, pre_action = None):
   """
   pass an instance of Config
   TODO: make more configurable
@@ -154,7 +154,8 @@ def build(config, pre_action):
   sources = (set(config.list_of_compilation_source_files) | 
              get_python_file_names_under(dirname_of_this_library()))
   for do in buildsystem.run(config.site_source_dir, sources):
-    pre_action(do)
+    if pre_action != None:
+      pre_action(do)
 
     route_metadata, rewriter = \
         custom_site_preprocessing(config, do)
