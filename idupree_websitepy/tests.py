@@ -1,33 +1,25 @@
 
-import re, traceback, sys, os, collections, urllib.parse, json
+import re, traceback, sys, os, collections, urllib.parse, json, collections
 import asyncio
-
-# pip3 install --user http-parser
-try:
-    from http_parser.parser import HttpParser
-except ImportError:
-    from http_parser.pyparser import HttpParser
+from email import message_from_bytes
 
 # we expect a Config object such as idupree_websitepy.build.Config
 #from .build import Config
 
 
-#attr kind: Int,  could be 0 to parseonly requests,
-#  1 to parse only responses or 2 if we want to let
-#  the parser detect the type.
-
-
-# Wrapping http-parser package because its API fits poorly
-# with our goals (esp. providing a recv_body() method but
-# no const method to return the body).
+# HTTP headers are RFC2822 headers and python doesn't come with
+# a more straightforward interface for HTTP header parsing
+# (aside from one hidden in the implementations of http.client/http.server).
+# See https://stackoverflow.com/questions/4685217/parse-raw-http-headers
 class HttpResponse(object):
     def __init__(self, data):
-        p = HttpParser(1)  # 0=request, 1=response, 2=autodetect
-        p.execute(data, len(data))
-        p.execute(b'', 0)  # end input
-        self.status_code = p.get_status_code()
-        self.headers = p.get_headers()
-        self.body = p.recv_body()
+        status_line, rest = data.split(b'\r\n', 1)
+        self.http_version, status_code, self.status_reason_phrase = \
+          re.search(br'^(HTTP/1\.[01]) ([0-9]*) (.*)$', status_line).groups()
+        self.status_code = int(status_code)
+        message = message_from_bytes(rest)
+        self.headers = collections.OrderedDict(message.items())
+        self.body = message.get_payload().encode('utf-8')
 
 
 

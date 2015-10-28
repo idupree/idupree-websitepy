@@ -37,7 +37,6 @@ setup(
     keywords='',
     packages=find_packages(exclude=['contrib', 'docs', 'tests*']),
     install_requires=(
-        ['http-parser'] +
         (['asyncio'] if sys.version_info < (3,4) else [])
     ),
     data_files=[],
