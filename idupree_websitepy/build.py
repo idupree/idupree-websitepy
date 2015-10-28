@@ -1,5 +1,5 @@
 
-import os, os.path, subprocess, re, base64, hashlib, mimetypes, copy
+import os, os.path, sys, subprocess, re, base64, hashlib, mimetypes, copy
 from os.path import join, dirname, normpath, exists
 from urllib.parse import urljoin, urldefrag, urlparse
 from distutils.spawn import find_executable
@@ -497,7 +497,7 @@ def custom_site_preprocessing(config, do):
       else:
         # (we don't currently try to check links to third-party websites)
         if path[:len(config.hypothetical_scheme_and_domain)] == config.hypothetical_scheme_and_domain:
-          print(route, 'links to nonexistent', ref)
+          sys.stderr.write(route + ' links to nonexistent ' + ref + '\n')
           nonlocal broken_link_found
           broken_link_found = True
     return result

@@ -25,7 +25,8 @@ def s3up(resources_dir, s3dest):
 
   Requires 's3cmd' to be installed ( http://s3tools.org/s3cmd ).
   """
-  print("""Warning: s3up may not be up to date with my preferred HTTP headers,
+  sys.stderr.write(
+  """Warning: s3up may not be up to date with my preferred HTTP headers,
 and Amazon S3 didn't even allow specifying some of my chosen headers.
 """)
 
