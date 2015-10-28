@@ -91,6 +91,15 @@ class Config(object):
       If you desire extra control for some reason, you can separately
       specify random values in 'bytes' format for rr_hash_random_bytes
       and nginx_hash_random_bytes.
+
+    doindexfrom and butdontindexfrom specify which pages we'll tell
+      search engines not to index.  A page or resource is indexable if it
+      can be reached* from a page in doindexfrom without passing through
+      a page in butdontindexfrom.
+      *reached = by following links and/or resource references within
+      the site being compiled.
+      They can be specified either using full URLs, and/or domain-relative
+      URLs that are considered to be relative to canonical_scheme_and_domain.
     """
     assert(not re.search(r'\.\.|^/', site_document_root_relative_to_source_dir))
     if pandoc_template_relative_to_source_dir != None:
@@ -122,8 +131,12 @@ class Config(object):
     # and contents-hash.  This is not an actual URI scheme.
     self.fake_resource_route = 'resource-route:///'
     self.nocdn_resources_path = nocdn_resources_path
-    self.doindexfrom = set(doindexfrom)
-    self.butdontindexfrom = set(butdontindexfrom)
+    def expand_indexable_path(f):
+      return canonical_scheme_and_domain+f if f[:1] == '/' else f
+    self.doindexfrom = set(map(expand_indexable_path, doindexfrom))
+    self.butdontindexfrom = set(map(expand_indexable_path, butdontindexfrom))
+    if (self.doindexfrom & self.butdontindexfrom) != set():
+      raise ValueError('doindexfrom must be disjoint with butdontindexfrom')
     if isinstance(optionally_secret_random_data, str):
       optionally_secret_random_data = optionally_secret_random_data.encode('utf-8')
     if optionally_secret_random_data == None:
