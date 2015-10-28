@@ -530,6 +530,13 @@ def custom_site_preprocessing(config, do):
       lambda f: filter(lambda f2: f2 not in config.butdontindexfrom, find_internal_links(f)),
     True, True)(config.doindexfrom))
   if broken_link_found:
+    sys.stderr.write("""
+If some of the broken-link files actually exist, do you need to rr:ify
+the links to them?  Or if they are supposed to be user-visible URLs,
+do you need to advocate for some more file extensions or paths to be
+included as such in idupree_websitepy.build's code? Or for that config
+to be slightly more extensible?
+""")
     exit(1)
 
   # Auto redirect trailing slashes or lack thereof,
