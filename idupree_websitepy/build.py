@@ -28,6 +28,8 @@ class Config(object):
     nocdn_resources_path = '/_resources/',
     doindexfrom,
     butdontindexfrom,
+    error_on_missing_resource = True,
+    error_on_broken_internal_link = True,
     optionally_secret_random_data = None,
     rr_hash_random_bytes = None,
     nginx_hash_random_bytes = None,
@@ -155,6 +157,9 @@ class Config(object):
         hashlib.sha384(b'nginx:'+optionally_secret_random_data).digest()
     self.rr_hash_random_bytes = rr_hash_random_bytes
     self.nginx_hash_random_bytes = nginx_hash_random_bytes
+
+    self.error_on_missing_resource = error_on_missing_resource
+    self.error_on_broken_internal_link = error_on_broken_internal_link
 
     self.test_host = test_host
     self.test_port = test_port
@@ -457,12 +462,15 @@ def custom_site_preprocessing(config, do):
     do=do)
 
   nonresource_routes = {route_ for route_ in route_metadata}
+  missing_resource = False
   for f in rewriter.recall_all_needed_resources(
       route_metadata[f].file for f in nonresource_routes if route_metadata[f].file):
     if f in file_metadata:
       add_route(config.fake_resource_route+f, f)
     else:
-      sys.stderr.write("WARNING: couldn't find resource?: "+f+'\n')
+      missing_resource = True
+      msg = "couldn't find resource?: " + f
+      sys.stderr.write("WARNING: "+msg+"\n")
   resource_routes = {route_ for route_ in route_metadata} - nonresource_routes
 
   # Double check that doindexfrom and butdontindexfrom don't have any typoes
@@ -539,6 +547,12 @@ the links to them?  Or if they are supposed to be user-visible URLs,
 do you need to advocate for some more file extensions or paths to be
 included as such in idupree_websitepy.build's code? Or for that config
 to be slightly more extensible?
+""")
+  if ((missing_resource and config.error_on_missing_resource) or
+      (broken_link_found and config.error_on_broken_internal_link)):
+    sys.stderr.write("""
+Exiting due to broken internal and/or resource links.
+(If you want to allow them, change error_on_* settings in your Config.)
 """)
     exit(1)
 
