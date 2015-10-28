@@ -1,6 +1,6 @@
 
 import os, sys, hashlib, re, gzip, random
-from os.path import relpath, join, isdir
+from os.path import relpath, join, isdir, basename
 
 def subPrematchedText(matches, replacement, originalText):
   """
@@ -189,9 +189,25 @@ def relpath_files_under(rootpath):
     for f in filenames:
       yield relpath(join(dirpath, f), rootpath)
 
+default_vcs_dirs = {'.git', '.hg', '.bzr', '.svn', '__pycache__'}
+def relpath_files_under_excluding_vcs_etc(rootpath, vcs_dirs = default_vcs_dirs):
+  for dirpath, dirnames, filenames in os.walk(rootpath):
+    if basename(dirpath) in vcs_dirs:
+      dirnames[:] = []
+    else:
+      for f in filenames:
+        yield relpath(join(dirpath, f), rootpath)
+
 def relpath_dirs_under(rootpath):
   for dirpath, dirnames, filenames in os.walk(rootpath):
     yield relpath(dirpath, rootpath)
+
+def relpath_dirs_under_excluding_vcs_etc(rootpath, vcs_dirs = default_vcs_dirs):
+  for dirpath, dirnames, filenames in os.walk(rootpath):
+    if basename(dirpath) in vcs_dirs:
+      dirnames[:] = []
+    else:
+      yield relpath(dirpath, rootpath)
 
 # for python2/3 doctest compatibility, and general doctest readability,
 # use 'testprint'

@@ -280,10 +280,14 @@ $(function() {
   if not isdir(within_dir):
     only_this_file = basename(within_dir)
     within_dir = normpath(dirname(within_dir))
-  existence.update({f: True for f in utils.relpath_files_under(within_dir)})
-  existence.update({d: False for d in utils.relpath_dirs_under(within_dir)})
+  existence.update({f: True for f in
+    utils.relpath_files_under_excluding_vcs_etc(within_dir)})
+  existence.update({d: False for d in
+    utils.relpath_dirs_under_excluding_vcs_etc(within_dir)})
   transformations = {}
-  for f in utils.relpath_files_under(within_dir) if only_this_file == None else [only_this_file]:
+  for f in (utils.relpath_files_under_excluding_vcs_etc(within_dir)
+              if only_this_file == None
+            else [only_this_file]):
     #HACK for efficiency:
     if re.search(r'^words-int\.(js|json)$', basename(f)): continue
     
