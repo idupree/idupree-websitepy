@@ -108,8 +108,8 @@ class Config(object):
     #  are specified!!)
     self.hypothetical_scheme_and_domain = canonical_scheme_and_domain or 'https://hypothetical.idupree.com'
     self.nocdn_resources_path = nocdn_resources_path
-    self.doindexfrom = doindexfrom
-    self.butdontindexfrom = butdontindexfrom
+    self.doindexfrom = set(doindexfrom)
+    self.butdontindexfrom = set(butdontindexfrom)
     self.rr_hash_random_bytes = rr_hash_random_bytes
     self.nginx_hash_random_bytes = nginx_hash_random_bytes
 
