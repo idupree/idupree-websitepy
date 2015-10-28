@@ -42,8 +42,9 @@ class Config(object):
     nocdn_resources_path = '/_resources/',
     doindexfrom,
     butdontindexfrom,
-    rr_hash_random_bytes,
-    nginx_hash_random_bytes,
+    optionally_secret_random_data = None,
+    rr_hash_random_bytes = None,
+    nginx_hash_random_bytes = None,
     test_host = None,
     test_port = None,
     test_host_header = None,
@@ -82,6 +83,21 @@ class Config(object):
     path. ("nocdn" because this code used to support serving files through
     a CDN in a different way. If we bring back that feature, we'll see how
     that ends up being arranged like.)
+
+    optionally_secret_random_data: bytes or str.  Used in some hashes
+      to produce random strings that people shouldn't be able to guess.
+
+      This should try to remain consistent from one run of this script to the
+      next, in order to make tools like rsync and browser caching be able
+      to recognize that files that haven't changed are still the same.
+
+      If it's not a high-entropy random secret, then people may be able
+      to discover some resource files on your website that aren't
+      linked from anywhere, by guessing their URLs.
+
+      If you desire extra control for some reason, you can separately
+      specify random values in 'bytes' format for rr_hash_random_bytes
+      and nginx_hash_random_bytes.
     """
     assert(not re.search(r'\.\.|^/', site_document_root_relative_to_source_dir))
     if pandoc_template_relative_to_source_dir != None:
@@ -110,6 +126,21 @@ class Config(object):
     self.nocdn_resources_path = nocdn_resources_path
     self.doindexfrom = set(doindexfrom)
     self.butdontindexfrom = set(butdontindexfrom)
+    if isinstance(optionally_secret_random_data, str):
+      optionally_secret_random_data = optionally_secret_random_data.encode('utf-8')
+    if optionally_secret_random_data == None:
+      # 256 bits of public data that I generated with crypto random.
+      # The only use of such public random data is that the hashes we create
+      # will be different from hashes created not using these bits of data.
+      # In any case, it doesn't hurt compared to using b''.
+      optionally_secret_random_data = \
+        b'rdtvsrzzokqozngqkdeafvksozujwikieiflltsezonabuxgmohjxek'
+    if rr_hash_random_bytes == None:
+      rr_hash_random_bytes = \
+        hashlib.sha384(b'rr:'+optionally_secret_random_data).digest()
+    if nginx_hash_random_bytes == None:
+      nginx_hash_random_bytes = \
+        hashlib.sha384(b'nginx:'+optionally_secret_random_data).digest()
     self.rr_hash_random_bytes = rr_hash_random_bytes
     self.nginx_hash_random_bytes = nginx_hash_random_bytes
 
