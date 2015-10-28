@@ -76,7 +76,9 @@ class Config(object):
                 set(utils.files_under('.'))))
       or you could use get_python_file_names_under() if applicable.
 
-    canonical_scheme_and_domain: default none, example 'http://www.idupree.com'
+    canonical_scheme_and_domain: default none,
+      example 'http://www.idupree.com'.  Used in Link: rel="canonical"
+      HTTP headers if it's provided.
 
     nocdn_resources_path:
     serve all resources (images, CSS, etc) with paths prefixed with this
