@@ -423,7 +423,7 @@ def custom_site_preprocessing(config, do):
         #so I'll run it every time.
         # Creates both f and f_map:
         cmd([config.sassc_command, '--sourcemap', src, dest])
-    elif re.search(r'\.(txt|asc|pdf|rss|atom|zip|tar\.(gz|bz2|xz)|appcache)$|^t\.gif$|^favicon.ico$|^haddock-presentation-2010/', srcf):
+    elif re.search(r'\.(txt|asc|pdf|rss|atom|zip|tar\.(gz|bz2|xz)|appcache)$|^t\.gif$|^favicon.ico$|((^|/)atom\.xml)$|^haddock-presentation-2010/', srcf):
       f = srcf
       route = config.hypothetical_scheme_and_domain+'/'+f
       dest = join('site', f)
