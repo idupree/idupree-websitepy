@@ -12,12 +12,6 @@ from . import resource_rewriting
 
 cmd = subprocess.check_call
 
-# TODO delete:
-#cdn_resources_path = '//??????????.cloudfront.net/'
-#scheme_and_domain = 'http://www.idupree.com'
-#doindexfrom = set(map(lambda r: scheme_and_domain+r, ['/']))
-#butdontindexfrom = set(map(lambda r: scheme_and_domain+r, ['/semiprivate-page']))
-
 # fake_resource_route: prefixed to resource names to give them
 # routes before they are rewritten to the actual resource-route prefix
 # and contents-hash.
