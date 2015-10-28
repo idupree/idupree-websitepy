@@ -36,6 +36,11 @@ def resolve_rr_deps_of_file(rr_ref_re, fpath, fpathout, f, site_files_prefix):
   utils.write_file_binary(fpathout, contentsout)
 
 
+# random hex of length equal to a sha384 hash,
+# so it's statistically unlikely to be the same
+# as any hash of a guessable real text.
+hash_for_nonexistent_file = b'dc02289afc4d6329d8886f13d6c88786488c69c5886ad8ec3df9dc5546c34f1da64740b521e63804d457339c977d29aa'
+
 class ResourceRewriter(object):
   """
   Constructing a ResourceRewriter will compute the dependency information,
@@ -140,7 +145,11 @@ class ResourceRewriter(object):
     referenced_and_rewritable_files = frozenset(self._referenced_resource_files | rewritable_files)
     for f in referenced_and_rewritable_files:
       for [src], [dest] in do([join(site_source_prefix, f)], [self._hash_f(f)]):
-        io['wb'](dest, utils.sha384file(src).digest())
+        if exists(src):
+          sha = utils.sha384file(src).digest()
+        else:
+          sha = hash_for_nonexistent_file
+        io['wb'](dest, sha)
     for f in referenced_and_rewritable_files:
       # todo it is possible to do more work-sharing than this for more efficiency
       transitive_deps = set(utils.make_transitive(self.recall_direct_deps)(f))
@@ -271,9 +280,10 @@ class ResourceRewriter(object):
     if copy_nonrewritable_resources != None:
       for f in self._referenced_resource_files:
         if f not in already_copied and not isdir(join(self._site_source_prefix, f)):
-          for [src], [dest] in self._do(
-                [join(self._site_source_prefix, f)], [join(dest_dir, f)]):
-            copy_nonrewritable_resources(src, dest)
+          src = join(self._site_source_prefix, f)
+          if exists(src):
+            for _, [dest] in self._do([src], [join(dest_dir, f)]):
+              copy_nonrewritable_resources(src, dest)
           already_copied.add(f)
     if copy_remaining_files_in_site_source_prefix != None:
       for f in utils.relpath_files_under(self._site_source_prefix):

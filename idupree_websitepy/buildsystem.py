@@ -43,6 +43,17 @@ def _set_mtime(fpath, mtime_ns):
 def _mtime_opt(fpath):
   try: return _mtime(fpath)
   except (FileNotFoundError, NotADirectoryError): return None
+def _mtime_or_ancestor_mtime(fpath):
+  """
+  If you need a monotonically increasing mtime of a nonexistent
+  file, or file that goes in and out of existence repeatedly,
+  this is probably the best estimate we have. Though it will
+  also increase unnecessarily at some times.
+  """
+  while True:
+    try: return _mtime(fpath)
+    except (FileNotFoundError, NotADirectoryError): pass
+    fpath = dirname(fpath)
 _unix_epoch = 0
 def _max_mtime(iterable_of_mtimes):
   return max([_unix_epoch] + list(iterable_of_mtimes))
@@ -100,7 +111,8 @@ def generic_do(sources, dests, build_system_sources, dirs_with_already_built_stu
   If you use this directly, you specify those explicitly instead.
   """
   fullsources = itertools.chain(build_system_sources, sources)
-  latest_modified_source = _max_mtime(_mtime(source) for source in fullsources)
+  latest_modified_source = _max_mtime(
+    _mtime_or_ancestor_mtime(source) for source in fullsources)
   # Saying to generate a file when it's already there is elided.
   if all(map(exists, dests)):
     return

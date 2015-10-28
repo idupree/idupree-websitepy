@@ -459,7 +459,10 @@ def custom_site_preprocessing(config, do):
   nonresource_routes = {route_ for route_ in route_metadata}
   for f in rewriter.recall_all_needed_resources(
       route_metadata[f].file for f in nonresource_routes if route_metadata[f].file):
-    add_route(config.fake_resource_route+f, f)
+    if f in file_metadata:
+      add_route(config.fake_resource_route+f, f)
+    else:
+      sys.stderr.write("WARNING: couldn't find resource?: "+f+'\n')
   resource_routes = {route_ for route_ in route_metadata} - nonresource_routes
 
   # Double check that doindexfrom and butdontindexfrom don't have any typoes
