@@ -12,16 +12,6 @@ from . import resource_rewriting
 
 cmd = subprocess.check_call
 
-# fake_resource_route: prefixed to resource names to give them
-# routes before they are rewritten to the actual resource-route prefix
-# and contents-hash.
-fake_resource_route = 'http://fake-rr.idupree.com/'
-def is_fake_rr(route):
-  return route[:len(fake_resource_route)] == fake_resource_route
-def fake_rr_to_f(route):
-  if is_fake_rr(route): return route[len(fake_resource_route):]
-  else: return None
-
 class SasscDefault: pass
 
 class Config(object):
@@ -127,6 +117,10 @@ class Config(object):
     # (if so, figure out how that interacts with how doindexfrom/butdontindexfrom
     #  are specified!!)
     self.hypothetical_scheme_and_domain = canonical_scheme_and_domain or 'https://hypothetical.idupree.com'
+    # fake_resource_route: prefixed to resource names to give them
+    # routes before they are rewritten to the actual resource-route prefix
+    # and contents-hash.  This is not an actual URI scheme.
+    self.fake_resource_route = 'resource-route:///'
     self.nocdn_resources_path = nocdn_resources_path
     self.doindexfrom = set(doindexfrom)
     self.butdontindexfrom = set(butdontindexfrom)
@@ -152,6 +146,13 @@ class Config(object):
     self.test_port = test_port
     self.test_host_header = test_host_header
     self.test_all_content_lengths = test_all_content_lengths
+
+  def is_fake_rr(self, route):
+    return route[:len(self.fake_resource_route)] == self.fake_resource_route
+  def fake_rr_to_f(self, route):
+    if self.is_fake_rr(route): return route[len(self.fake_resource_route):]
+    else: return None
+
 
 def svg_to_png(src, dest, width, height):
   cmd(['inkscape', '--without-gui', '--export-png='+dest,
@@ -444,7 +445,7 @@ def custom_site_preprocessing(config, do):
   nonresource_routes = {route_ for route_ in route_metadata}
   for f in rewriter.recall_all_needed_resources(
       route_metadata[f].file for f in nonresource_routes if route_metadata[f].file):
-    add_route(fake_resource_route+f, f)
+    add_route(config.fake_resource_route+f, f)
   resource_routes = {route_ for route_ in route_metadata} - nonresource_routes
 
   broken_link_found = False
@@ -483,7 +484,7 @@ def custom_site_preprocessing(config, do):
       linktype = 'rr' if href.group('url2') != None else 'href'
       ref = url.decode('utf-8')
       if linktype == 'rr':
-        path = fake_resource_route+normpath(join(dirname(f), ref))
+        path = config.fake_resource_route+normpath(join(dirname(f), ref))
       elif linktype == 'href':
         path = urldefrag(urljoin(route, ref))[0]
       if path in route_metadata:
@@ -526,7 +527,7 @@ def custom_site_preprocessing(config, do):
   for route in route_metadata:
     if urlparse(route).path == '/robots.txt':
       route_metadata[route].headers.append(('Cache-Control', 'max-age=15, must-revalidate'))
-    elif is_fake_rr(route) or urlparse(route).path == '/t.gif':
+    elif config.is_fake_rr(route) or urlparse(route).path == '/t.gif':
       route_metadata[route].headers.append(("Cache-Control", "max-age=8000000"))
     elif urlparse(route).path == '/favicon.ico':
       route_metadata[route].headers.append(('Cache-Control', 'max-age=400000'))
@@ -537,10 +538,10 @@ def custom_site_preprocessing(config, do):
     route_metadata[route].headers.append(("X-Frame-Options", "SAMEORIGIN"))
     if route_metadata[route].status in {200}:
       # http://googlewebmastercentral.blogspot.com/2011/06/supporting-relcanonical-http-headers.html
-      if not is_fake_rr(route):
+      if not config.is_fake_rr(route):
         canonical_url = route
         route_metadata[route].headers.append(("Link", '<'+canonical_url+'>; rel="canonical"'))
-      #rrf = fake_rr_to_f(route)
+      #rrf = config.fake_rr_to_f(route)
       #if rrf != None:
       #  # canonical_resources_route similar to nocdn_resources_route or
       #  # config.canonical_scheme_and_domain + config.nocdn_resources_path ?
@@ -551,7 +552,7 @@ def custom_site_preprocessing(config, do):
 
   utils.write_file_text('nocdn-resource-routes',
     '\n'.join(config.hypothetical_scheme_and_domain + config.nocdn_resources_path #nocdn_resources_route?
-                + rewriter.recall_rewritten_resource_name(fake_rr_to_f(f))
+                + rewriter.recall_rewritten_resource_name(config.fake_rr_to_f(f))
               for f in resource_routes))
   utils.write_file_text('nonresource-routes', '\n'.join(nonresource_routes))
 
@@ -578,7 +579,7 @@ def nginx_openresty(config, do, rewriter, route_metadata):
   nginx_routes = {}
   for route in route_metadata:
     if route != None:
-      rrf = fake_rr_to_f(route)
+      rrf = config.fake_rr_to_f(route)
       if rrf != None:
         nginx_routes[config.nocdn_resources_path+rewriter.recall_rewritten_resource_name(rrf)] = route
       else:
