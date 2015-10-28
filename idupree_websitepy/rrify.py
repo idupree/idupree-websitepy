@@ -9,12 +9,15 @@ from . import localwebfn
 
 usage = """
 Usage:
-./aux/rrify.py path/to/dir/to/swizzle/
+python3 -m idupree_websitepy.rrify path/to/dir/to/swizzle/
 
 This swizzling looks for links that might be resource refs
 and offers (via web browser UI) to mark them with ?rr and the
 proper quotes for you.  It also lets you undo that transformation.
 It doesn't make any changes until you submit the web form.
+
+If you don't want to automatically open a web browser, write:
+BROWSER=true python3 -m idupree_websitepy.rrify path/to/dir/to/swizzle/
 """
 
 # TODO consider sourceMappingURL.
@@ -335,12 +338,14 @@ def main():
   get_path = '/'+utils.alnum_secret()
   post_path = '/'+utils.alnum_secret()
   htmlf, possible_transformations = swizzle(site, post_path)
-  print(get_path)
-  print(post_path)
-  response_data = localwebfn.ask_for_POST(get_path, post_path, htmlf)
+  port_number = 9999
+  sys.stderr.write("Go to this URL if it didn't automatically open in your browser:\n")
+  sys.stdout.write('http://localhost:'+str(port_number)+get_path+'\n')
+  #sys.stderr.write(post_path+'\n')
+  response_data = localwebfn.ask_for_POST(get_path, post_path, htmlf, port_number)
   posted = urllib.parse.parse_qs(response_data.decode('utf-8'))
   mutating_swizzle(possible_transformations, posted)
-  print("done!")
+  sys.stderr.write("done!\n")
 
 if __name__ == '__main__':
   main()
