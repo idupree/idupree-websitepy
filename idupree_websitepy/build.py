@@ -378,9 +378,9 @@ def custom_site_preprocessing(config, do):
     src = join(src_document_root, srcf)
     route = None
     f = None
-    if re.search(r'\.(html|md|rss|atom)$', srcf):
+    if re.search(r'\.(html|md)$', srcf):
       is_markdown = re.search(r'\.md$', srcf)
-      extless_path = re.sub(r'\.(html|md|rss|atom)$', '', srcf)
+      extless_path = re.sub(r'\.(html|md)$', '', srcf)
       f = extless_path+'.html'
       dest = join('site', f)
       # slight hack for index.html file
@@ -418,7 +418,7 @@ def custom_site_preprocessing(config, do):
         #so I'll run it every time.
         # Creates both f and f_map:
         cmd([config.sassc_command, '--sourcemap', src, dest])
-    elif re.search(r'\.(txt|asc|pdf|zip|tar\.(gz|bz2|xz)|appcache)$|^t\.gif$|^favicon.ico$|^haddock-presentation-2010/', srcf):
+    elif re.search(r'\.(txt|asc|pdf|rss|atom|zip|tar\.(gz|bz2|xz)|appcache)$|^t\.gif$|^favicon.ico$|^haddock-presentation-2010/', srcf):
       f = srcf
       route = config.hypothetical_scheme_and_domain+'/'+f
       dest = join('site', f)
