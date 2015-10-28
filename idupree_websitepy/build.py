@@ -448,6 +448,22 @@ def custom_site_preprocessing(config, do):
     add_route(config.fake_resource_route+f, f)
   resource_routes = {route_ for route_ in route_metadata} - nonresource_routes
 
+  # Double check that doindexfrom and butdontindexfrom don't have any typoes
+  # (before using them, so that there's a better error message in the case of
+  #  doindexfrom).
+  def show_route_list():
+    sys.stderr.write('routes (except for trailing-slash-redirects):\n')
+    for f in sorted(route_metadata):
+      sys.stderr.write(f + '\n')
+  for f in config.doindexfrom:
+    if f not in route_metadata:
+      show_route_list()
+      raise KeyError('doindexfrom member not a known route: '+f)
+  for f in config.butdontindexfrom:
+    if f not in route_metadata:
+      show_route_list()
+      raise KeyError('butdontindexfrom member not a known route: '+f)
+
   broken_link_found = False
   #TODO use do() to make this cached in a file.
   def find_internal_links(route):
@@ -496,9 +512,6 @@ def custom_site_preprocessing(config, do):
           nonlocal broken_link_found
           broken_link_found = True
     return result
-  for f in config.butdontindexfrom:
-    # Double check that butdontindexfrom doesn't have any typoes
-    assert(f in route_metadata)
   routes_robots_should_index = set(utils.make_transitive(
       lambda f: filter(lambda f2: f2 not in config.butdontindexfrom, find_internal_links(f)),
     True, True)(config.doindexfrom))
