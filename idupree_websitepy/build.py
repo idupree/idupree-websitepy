@@ -2,6 +2,7 @@
 import os, os.path, sys, subprocess, re, base64, hashlib, mimetypes, copy
 from os.path import join, dirname, normpath, exists
 from urllib.parse import urljoin, urldefrag, urlparse
+import html
 from distutils.spawn import find_executable
 
 from . import buildsystem
@@ -511,7 +512,7 @@ def custom_site_preprocessing(config, do):
         contents):
       url = href.group('url1') or href.group('url2')
       linktype = 'rr' if href.group('url2') != None else 'href'
-      ref = url.decode('utf-8')
+      ref = html.unescape(url.decode('utf-8'))
       if linktype == 'rr':
         path = config.fake_resource_route+normpath(join(dirname(f), ref))
       elif linktype == 'href':
