@@ -72,10 +72,10 @@ class Config(object):
       HTTP headers if it's provided.
 
     nocdn_resources_path:
-    serve all resources (images, CSS, etc) with paths prefixed with this
-    path. ("nocdn" because this code used to support serving files through
-    a CDN in a different way. If we bring back that feature, we'll see how
-    that ends up being arranged like.)
+      serve all resources (images, CSS, etc) with paths prefixed with this
+      path. ("nocdn" because this code used to support serving files through
+      a CDN in a different way. If we bring back that feature, we'll see how
+      that ends up being arranged like.)
 
     optionally_secret_random_data: bytes or str.  Used in some hashes
       to produce random strings that people shouldn't be able to guess.
