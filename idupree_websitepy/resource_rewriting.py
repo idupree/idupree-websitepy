@@ -1,9 +1,10 @@
 
 import re, hashlib, base64, os
-from os.path import join, relpath, exists, normpath, dirname, basename, isdir
+from os.path import relpath, exists, normpath, dirname, basename, isdir
 
 from . import urlregexps
 from . import utils
+from .utils import join
 # from . import buildsystem  #not directly used
 
 def joinif(a, b):

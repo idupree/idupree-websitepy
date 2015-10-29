@@ -1,6 +1,18 @@
 
 import os, sys, hashlib, re, gzip, random
-from os.path import relpath, join, isdir, basename
+from os.path import relpath, isdir, basename
+
+# We use forward slashes for paths even on Windows
+# in order for consistency with URLs.
+# For now, still use os.path.join instead of posixpath.join
+# in case we're relying on correct behavior with absolute
+# Windows paths.  Also consider integrating this with
+# urljoin using heuristics?
+def join(*f):
+  return os.path.join(*f).replace('\\', '/')
+
+def normpath(f):
+  return os.path.normpath(f).replace('\\', '/')
 
 def subPrematchedText(matches, replacement, originalText):
   """

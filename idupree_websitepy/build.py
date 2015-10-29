@@ -1,6 +1,6 @@
 
 import os, os.path, sys, subprocess, re, base64, hashlib, mimetypes, copy
-from os.path import join, dirname, normpath, exists
+from os.path import dirname, exists
 from urllib.parse import urljoin, urldefrag, urlparse
 import html
 from distutils.spawn import find_executable
@@ -10,6 +10,7 @@ from . import utils
 from . import errdocs
 from . import urlregexps
 from . import resource_rewriting
+from .utils import join, normpath
 
 cmd = subprocess.check_call
 
