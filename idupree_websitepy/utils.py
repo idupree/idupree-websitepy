@@ -124,11 +124,9 @@ def file_re_sub(infile, outfile, *sub_args, **sub_kwargs):
   pattern = sub_args[0] if len(sub_args) > 0 else sub_kwargs['pattern']
   pattern = pattern if isinstance(pattern, (str, bytes)) else pattern.pattern
   isbinary = isinstance(pattern, bytes)
-  binarystr = 'b' if isbinary else ''
-  with open(infile, 'r'+binarystr) as f:
-    contents = f.read()
-  with open(outfile, 'w'+binarystr) as f:
-    f.write(re.sub(string=contents, *sub_args, **sub_kwargs))
+  old_contents = (read_file_binary if isbinary else read_file_text)(infile)
+  new_contents = re.sub(string=old_contents, *sub_args, **sub_kwargs)
+  (write_file_binary if isbinary else write_file_text)(outfile, new_contents)
 
 def gzip_omitting_metadata(infile, outfile):
   """
@@ -150,14 +148,14 @@ def gzip_omitting_metadata(infile, outfile):
         f_gzip.writelines(f_in)
 
 def read_file_text(path):
-  with open(path, 'r') as f:
+  with open(path, 'r', encoding='utf-8') as f:
     return f.read()
 def read_file_binary(path):
   with open(path, 'rb') as f:
     return f.read()
 
 def write_file_text(path, data):
-  with open(path, 'w') as f:
+  with open(path, 'w', encoding='utf-8') as f:
     return f.write(data)
 def write_file_binary(path, data):
   with open(path, 'wb') as f:

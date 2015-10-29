@@ -291,9 +291,9 @@ def dedomain(url):
 
 # The transparent gif will never change meaning, so it's fine
 # as a well-known nigh-forever-cacheable name.
-with open(os.path.join(build_dir, 'nocdn-resource-routes'), 'r') as f:
+with open(os.path.join(build_dir, 'nocdn-resource-routes'), 'r', encoding='utf-8') as f:
   resource_routes = set(map(dedomain, f.read().split('\n'))) | {'/t.gif'}
-with open(os.path.join(build_dir, 'nonresource-routes'), 'r') as f:
+with open(os.path.join(build_dir, 'nonresource-routes'), 'r', encoding='utf-8') as f:
   nonresource_routes = set(map(dedomain, f.read().split('\n')))
 
 existent_routes = resource_routes | nonresource_routes
