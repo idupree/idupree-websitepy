@@ -1,5 +1,11 @@
 #!/bin/sh
 
+# (2015 note:
+#  This script is obsolete. Modern distros use systemd which has a better
+#  way of handling ports than 'authbind'.  And if you can use debian,
+#  its `nginx-extras` package has the needed libraries, so building
+#  nginx-openresty yourself might not be needed.)
+
 # Run as root on an aspiring server.
 #
 # Given an Ubuntu installation (or Debian, or any distro on which you install
