@@ -285,11 +285,13 @@ def custom_site_preprocessing(config, do):
     #utils.file_re_sub(src, dest, b'{{:canonical}}', url.encode('utf-8'))
     # TODO test/allow alternate explicit icons.
     # My browsers don't fetch '/favicon.ico' at all.
+    html_for_canonical = (br'<link rel="canonical" href="' +
+                          canonical_url.encode('utf-8') + br'" />')
+    html_for_favicon = br'<link rel="shortcut icon" href="/favicon.ico?rr" />'
     utils.file_re_sub(src, dest, br'((?:\n|^)[ \t]*)<!--AUTOHEAD-->',
-      (br'\1<link rel="canonical" href="' + canonical_url.encode('utf-8') + b'" />'
-        if canonical_url != None else b'') +
-      br'\1<link rel="shortcut icon" href="/favicon.ico?rr" />'
-      )
+      (lambda m:
+         m.group(1) + html_for_canonical +
+         m.group(1) + html_for_favicon))
   def autoobfuscate(src, dest):
     """
     AUTO_OBFUSCATE_URL(addr example.com) --> mailto:addr@example.com obfuscated for
