@@ -10,7 +10,7 @@ from . import utils
 from . import errdocs
 from . import urlregexps
 from . import resource_rewriting
-from .utils import join, normpath
+from .utils import join, normpath, abspath, relpath
 
 cmd = subprocess.check_call
 
@@ -191,12 +191,12 @@ def pngs_to_ico(png_srcs, dest):
   cmd(['convert'] + png_srcs + [dest])
 
 def dirname_of_this_library():
-  return os.path.dirname(os.path.abspath(__file__))
+  return dirname(abspath(__file__))
 
-def get_python_file_names_under(dirname):
+def get_python_file_names_under(directory_name):
   return set(filter(
       lambda f: re.search('\.py$', f),
-      set(utils.files_under(dirname))))
+      set(utils.files_under(directory_name))))
 
 def build(config, pre_action = None):
   """
