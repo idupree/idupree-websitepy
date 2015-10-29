@@ -185,7 +185,7 @@ def pngs_to_ico(png_srcs, dest):
   The ICO format allows multiple PNGs[1] of different resolutions
   to be combined into one ICO file, with the context deciding which
   resolution gets used in any particular place.
-  
+
   [1] (or some other bitmap formats, but PNG is probably the best)
   """
   cmd(['convert'] + png_srcs + [dest])
@@ -207,7 +207,7 @@ def build(config, pre_action = None):
   pre_action is a function. pre_action(do) happens before other stuff
   but gets to share the build-temp directory...
   """
-  sources = (set(config.list_of_compilation_source_files) | 
+  sources = (set(config.list_of_compilation_source_files) |
              get_python_file_names_under(dirname_of_this_library()))
   for do in buildsystem.run(config.site_source_dir, sources,
                             config.build_output_dir):
@@ -684,7 +684,7 @@ def nginx_openresty(config, do, rewriter, route_metadata):
     # 22 base64 characters is more than 128 bits,
     # plenty to make collisions implausible
     return base64.urlsafe_b64encode(h.digest())[:22].decode('ascii')
-  
+
   def make_rule(route):
     """f can be none, in which case there is no HTTP body"""
     gzippable = route_metadata[route].worth_gzipping
@@ -723,7 +723,7 @@ def nginx_openresty(config, do, rewriter, route_metadata):
                    .format(repr(domainrelative_redirect_to)))
         rule.append(indent+"""ngx.header[{k}]={v}""".format(k=repr('Location'), v=expr))
     # Python and Lua string syntaxes are similar enough that we can use
-    # Python repr() to make Lua strings. 
+    # Python repr() to make Lua strings.
     rule = ["function()"]
     if f != None and status != 200:
       # nginx seems to reset the status to 200 upon ngx.exec(),
@@ -792,11 +792,11 @@ def nginx_openresty(config, do, rewriter, route_metadata):
   "local function do_page(path) (pages[path] or s404)(path) end\n" +
   "return do_page\n"
   )
-  
+
   utils.write_file_text(join('nginx', nginx_subdir_name, 'do_page.lua'), init_lua)
   #for [src], [dest] in do(['src/aux/nginx.conf'], ['nginx/nginx.conf']):
   #  os.link(src, dest)
 
-    
+
 if __name__ == '__main__':
   build()
