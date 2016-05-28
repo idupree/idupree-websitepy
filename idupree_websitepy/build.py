@@ -112,6 +112,8 @@ class Config(object):
     self.site_document_root_relative_to_source_dir = site_document_root_relative_to_source_dir
     self.site_document_root = join(site_source_dir, site_document_root_relative_to_source_dir)
     self.build_output_dir = build_output_dir
+    if self.build_output_dir == None:
+      self.build_output_dir = buildsystem.default_builds_dir_name(self.site_source_dir)
     self.pandoc_template_relative_to_source_dir = pandoc_template_relative_to_source_dir
     self.pandoc_command = pandoc_command
     if sassc_command != SasscDefault:

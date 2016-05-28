@@ -282,23 +282,9 @@ def get_redirect_target_to_test(route):
 #also what about multi domain routes
 
 
-#build_dir = '../+public-builds/build/'
-build_dir = './+site-builds/build/'
-
 # is this sensible?
 def dedomain(url):
   return re.sub(r'^(https?|file)://[^/]*', '', url)
-
-# The transparent gif will never change meaning, so it's fine
-# as a well-known nigh-forever-cacheable name.
-with open(os.path.join(build_dir, 'nocdn-resource-routes'), 'r', encoding='utf-8') as f:
-  resource_routes = set(map(dedomain, f.read().split('\n'))) | {'/t.gif'}
-with open(os.path.join(build_dir, 'nonresource-routes'), 'r', encoding='utf-8') as f:
-  nonresource_routes = set(map(dedomain, f.read().split('\n')))
-
-existent_routes = resource_routes | nonresource_routes
-tested_routes = existent_routes | set(status_codes_to_test)
-
 
 
 def is_active_content_type(t):
@@ -338,12 +324,12 @@ def test_route(config, route):
     test('no Server', lambda:test.notin('Server', headers))
     test('no Last-Modified', lambda:test.notin('Last-Modified', headers))
 
-    if route in existent_routes:
+    if route in config.tests_existent_routes:
       test("status 200 or such", lambda:test.in_(status_code, {200, 301, 302, 303, 307, 410}))
       if status_code == 200:
         test('has ETag', lambda:test.in_('ETag', headers))
         test('has Content-Length', lambda:test.in_('Content-Length', headers))
-        if route in nonresource_routes:
+        if route in config.tests_nonresource_routes:
           # TODO allow it if there are other Link: headers also:
           # search Link: headers for it.
           test("HTTP Link rel=canonical", lambda:test.eq(headers['Link'], '<http://www.idupree.com{}>; rel="canonical"'.format(route)))
@@ -366,7 +352,7 @@ def test_route(config, route):
       # IE < 11 only supports ico favicons
       test('favicon is ico', lambda:test.eq(content_type, 'image/x-icon'))
 
-    elif route not in resource_routes:
+    elif route not in config.tests_resource_routes:
       test('not lengthily cacheable', lambda:test.notre(r'max-age=[0-9]{5,}', headers.get("Cache-Control", '')))
 
     test('noarchive', lambda:test.re(r'noarchive', headers['X-Robots-Tag']))
@@ -389,14 +375,14 @@ def test_route(config, route):
       test('contains charset utf-8', lambda:test.re(br'''charset=['"]?utf-8''', body))
       test('does not refer to an SCSS mime type', lambda:test.notre(br'text/scss', body))
       test('does not contain @mixin or @include', lambda:test.notre(br'@mixin|@include', body))
-      if route in existent_routes:
+      if route in config.tests_existent_routes:
         test('has rel=canonical of idupree.com', lambda:test.re(br'''<link rel="canonical" href="http://www\.idupree\.com'''+re.escape(route).encode('utf-8')+br'"\s*/?>', body))
       else:
         test('has no <link rel="canonical">', lambda:test.notre(br'''<link rel="canonical"''', body))
 
       # Unfortunately, the validator refuses to validate the HTML contents
       # of pages whose HTTP status is 404.
-      if route in existent_routes:
+      if route in config.tests_existent_routes:
         # POST body now is the preferred way to use the validator,
         # it lets you specify Content-Type, and the remote-request
         # mechanism was having random time outs when testing hundreds
@@ -477,7 +463,7 @@ def test_route(config, route):
       test('content-type: application/javascript; charset=utf-8', lambda:test.eq(content_type, 'application/javascript; charset=utf-8'))
       
 
-    if route in resource_routes:
+    if route in config.tests_resource_routes:
       test('far future Cache-Control', lambda:test.re(r'^max-age=[0-9]{7,8}$', headers["Cache-Control"]))
       test('obscure name (or /t.gif)', lambda:test.re(r'^/t\.gif$|\.[-0-9a-zA-Z_]{15}([./]|$)', route))
 
@@ -511,12 +497,21 @@ def test_route(config, route):
 
 @asyncio.coroutine
 def do_tests(config):
+  with open(os.path.join(config.build_output_dir, 'build/nocdn-resource-routes'), 'r', encoding='utf-8') as f:
+    # The transparent gif will never change meaning, so it's fine
+    # as a well-known nigh-forever-cacheable name.
+    config.tests_resource_routes = set(map(dedomain, f.read().split('\n'))) | {'/t.gif'}
+  with open(os.path.join(config.build_output_dir, 'build/nonresource-routes'), 'r', encoding='utf-8') as f:
+    config.tests_nonresource_routes = set(map(dedomain, f.read().split('\n')))
+
+  config.tests_existent_routes = config.tests_resource_routes | config.tests_nonresource_routes
+  config.tests_tested_routes = config.tests_existent_routes | set(status_codes_to_test)
 
   @asyncio.coroutine
   def test_route_here(route):
     return (yield from test_route(config, route))
 
-  test_results = map(asyncio.Task, map(test_route_here, tested_routes))
+  test_results = map(asyncio.Task, map(test_route_here, config.tests_tested_routes))
 
   results, [] = (yield from asyncio.wait(test_results))
   results = map(lambda x: x.result(), results)

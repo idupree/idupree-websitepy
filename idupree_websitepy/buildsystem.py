@@ -222,6 +222,8 @@ def run_basic(builds_dir, build_system_sources):
   rename(building_dir, build_dir)
 
 
+def default_builds_dir_name(srcdir):
+  return join(dirname(srcdir), '+' + basename(srcdir) + '-builds')
 
 # hmm what about (optionally) cleanly copying source using `git clone`
 
@@ -253,7 +255,7 @@ def run(srcdir, build_system_sources, builds_dir = None, exclude_src_files = exc
   if srcdir == '/':
     raise OSError("You can't use / as your src dir in this wrapper because it would obviously have to include the build dir and be copied into itself!")
   if builds_dir == None:
-    builds_dir = join(dirname(srcdir), '+' + basename(srcdir) + '-builds')
+    builds_dir = default_builds_dir_name(srcdir)
   for building_dir, do in run_basic(builds_dir, build_system_sources):
     with utils.pushd(building_dir):
       # set up src
