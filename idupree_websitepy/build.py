@@ -37,6 +37,7 @@ class Config(object):
     test_host = None,
     test_port = None,
     test_host_header = None,
+    test_canonical_origin = None,
     # Setting to True can be slow on non-localhost connections if you
     # have a lot of data (e.g. images) on the site; all "True" tests
     # is that this library's Content-Length header code isn't buggy for
@@ -104,6 +105,18 @@ class Config(object):
       the site being compiled.
       They can be specified either using full URLs, and/or domain-relative
       URLs that are considered to be relative to canonical_scheme_and_domain.
+
+    for tests:
+      requests go to http://test_host:test_port (sorry, HTTPS not supported yet)
+      and get a Host header of test_host_header.
+
+      If test_canonical_origin is specified, tests will check rel=canonical
+      headers/elements to match that.
+
+      test_all_content_lengths is a boolean that can make tests slow if True,
+      so it defaults to false. True downloads all files, even images/videos,
+      from the test server just to test that the server sends the right
+      number of bytes that it claims in its Content-Length header.
     """
     assert(not re.search(r'\.\.|^/', site_document_root_relative_to_source_dir))
     if pandoc_template_relative_to_source_dir != None:
@@ -167,6 +180,7 @@ class Config(object):
     self.test_host = test_host
     self.test_port = test_port
     self.test_host_header = test_host_header
+    self.test_canonical_origin = test_canonical_origin
     self.test_all_content_lengths = test_all_content_lengths
 
   def is_fake_rr(self, route):

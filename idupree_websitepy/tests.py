@@ -329,10 +329,11 @@ def test_route(config, route):
       if status_code == 200:
         test('has ETag', lambda:test.in_('ETag', headers))
         test('has Content-Length', lambda:test.in_('Content-Length', headers))
-        if route in config.tests_nonresource_routes:
+        if config.test_canonical_origin != None and route in config.tests_nonresource_routes:
           # TODO allow it if there are other Link: headers also:
           # search Link: headers for it.
-          test("HTTP Link rel=canonical", lambda:test.eq(headers['Link'], '<http://www.idupree.com{}>; rel="canonical"'.format(route)))
+          test("HTTP Link rel=canonical", lambda:test.eq(headers['Link'],
+            '<{}{}>; rel="canonical"'.format(config.test_canonical_origin, route)))
     else:
       # TODO allow it if there are other Link: headers also:
       # search Link: headers for it.
@@ -376,7 +377,11 @@ def test_route(config, route):
       test('does not refer to an SCSS mime type', lambda:test.notre(br'text/scss', body))
       test('does not contain @mixin or @include', lambda:test.notre(br'@mixin|@include', body))
       if route in config.tests_existent_routes:
-        test('has rel=canonical of idupree.com', lambda:test.re(br'''<link rel="canonical" href="http://www\.idupree\.com'''+re.escape(route).encode('utf-8')+br'"\s*/?>', body))
+        if config.test_canonical_origin != None:
+          test('has rel=canonical of '+config.test_canonical_origin,
+            lambda:test.re(br'''<link rel="canonical" href="''' +
+              re.escape(config.test_canonical_origin + route).encode('utf-8') +
+              br'"\s*/?>', body))
       else:
         test('has no <link rel="canonical">', lambda:test.notre(br'''<link rel="canonical"''', body))
 
