@@ -163,116 +163,19 @@ class Test(object):
   #def re(self, *args, **kwargs):
   #  return (bool(re.search(re_, str_)), 're.search({}, {})'.format(re_, str_)) #(re_, str_))
 
-
-status_codes_to_test = {
-	'/random-lwn': (301, '/random-lwn/'),
-	'/random-lwn/': 200,
-	'/Random-lwn/': 404, # test for case sensitivity and lack of auto spelling-correct based on Hamming distance or similar. The latter or both might be a good idea to do in some cases and make 301 redirects. But it's good to realize when it accidentally changes. I can change the test if I implement something else.
-	'/random-lwn/go': 200,
-	'/random-lwn/go/': (301, '/random-lwn/go'),
-	'/random-lwn/go.html': 404,
-	'/random-lwn/notgzipped,,go': 404,
-	'/random-lwn/notgzipped,,go.html': 404,
-	'/random-lwn/go.pl': 404,
-	'/random-lwn/go.py': 404,
-	'/random-lwn/go.asp': 404,
-	'/random-lwn/go.shtml': 404,
-	'/random-lwn/go.htm': 404,
-	'/random-lwn/go.rb': 404,
-	'/random-lwn/go.cgi': 404,
-	'/random-lwn/go.php': 404,
-	'/random-lwn/go.js': 404,
-	'/random-lwn/index': 404,
-	'/random-lwn/index.html': 404,
-	'/random-lwn/index.html/': 404,
-	'/index.html': 404,
-	'/index': 404,
-	'/': 200,
-	'/.htaccess': 404,
-	'/robots.txt': 200,
-	'/thispagedoesntexist.png.exe': 404,
-	'/t.gif': 200,
-	'/robots.txt': 200,
-	'/favicon.ico': 200,
-	'/_resources': 404,
-	'/_resources/': 404,
-	'/four-color/': 200,
-	# what about other things under /four-colour/ ?
-	'/four-colour/': (301, '/four-color/'),
-        '/four-colour': (301, '/four-color/'),
-        '/four-color/Birkhoff-diamond/': 200,
-        '/four-color/Birkhoff-diamond': (301, '/four-color/Birkhoff-diamond/'),
-        '/four-color/Birkhoff diamond/': (301, '/four-color/Birkhoff-diamond/'),
-        '/four-color/Birkhoff diamond': (301, '/four-color/Birkhoff-diamond/'),
-	# what about making this work without cookies?
-	'/starplay/': 200,
-	'/lispy/': 200,
-	'/haddock-presentation-2010/Haddock-presentation.png': 200,
-	'/haddock-presentation-2010/Haddock-presentation-plain.svg': 200,
-	'/haddock-presentation-2010/Haddock-presentation-inkscape.svg': 200,
-	# Make sure various source directories that exist, have existed,
-	# and/or may later exist, didn't get put onto the website by accident.
-	'/nonresource-routes': 404,
-	'/build/nonresource-routes': 404,
-	'/+public-builds/build/nonresource-routes': 404,
-	'/inotify-build-and-localupload': 404,
-	'/inotify-build-and-localupload': 404,
-	'/err/500.html': 404,
-	'/err/500': 404,
-	'/err/': 404,
-	'/err': 404,
-	'/aux': 404,
-	'/aux/': 404,
-	'/site': 404,
-	'/site/': 404,
-	'/compile': 404,
-	'/compile/': 404,
-	'/compile/go': 404,
-	'/compile/tests.js': 404,
-	'/compile/compile': 404,
-	'/compile/compile.js': 404,
-	'/srv': 404,
-	'/srv/': 404,
-	'/srv/openresty': 404,
-	'/srv/openresty/': 404,
-	'/srv/openresty/prefix': 404,
-	'/srv/openresty/prefix/': 404,
-	'/srv/openresty/conf': 404,
-	'/srv/openresty/conf/': 404,
-	'/conf': 404,
-	'/conf/': 404,
-	'/conf/init.lua': 404,
-	'/conf/idupreecom.lua': 404,
-	'/conf/idupreecom/do_page.lua': 404,
-	'/idupreecom/do_page.lua': 404,
-	'/srv/openresty/conf/idupreecom/do_page.lua': 404,
-	'/do_page.lua': 404,
-	'/conf/nginx.conf': 404,
-	'/pagecontent': 404,
-	# unfortunately this gives a different 404 page from nginx
-	# which triggers some other of my checks' errors; oh well:
-	# '/pagecontent/': 404,
-	'/conf/pagecontent': 404,
-	'/conf/pagecontent/': 404,
-	'/conf/idupreecom/pagecontent': 404,
-	'/conf/idupreecom/pagecontent/': 404,
-	'/prefix': 404,
-	'/prefix/': 404,
-	'/.gitignore': 404,
-	'/err/.gitignore': 404,
-	'/.git': 404,
-	'/.git/': 404,
-	'/.git/config': 404,
-	'/i': 404,
-	'/i/': 404,
-}
-def get_status_code_to_test(route):
-  try: return status_codes_to_test[route][0]
-  except TypeError: return status_codes_to_test[route]
+def get_status_code_to_test(config, route):
+  try: return config.test_status_codes[route][0]
+  except TypeError: return config.test_status_codes[route]
   except KeyError: return None
-def get_redirect_target_to_test(route):
-  try: return status_codes_to_test[route][1]
-  except (KeyError, TypeError): return None
+def get_redirect_target_to_test(config, route):
+  try:
+    r = config.test_status_codes[route][1]
+  except (KeyError, TypeError):
+    return None
+  if r[:1] == '/':
+    return test_scheme_domain_port_string_for_redirects(config) + r
+  else:
+    return r
 
 #TODO autogen these (and 'test' that certain paths are in them,
 #incl robots.txt and favicon.ico and / and /various
@@ -339,13 +242,13 @@ def test_route(config, route):
       # search Link: headers for it.
       test("Has no HTTP Link rel=canonical", lambda:test.notin('Link', headers))
 
-    if route in status_codes_to_test:
+    if route in config.test_status_codes:
       test("status matches expectation", lambda:test.eq(status_code,
-        get_status_code_to_test(route)))
+        get_status_code_to_test(config, route)))
 
-    if get_redirect_target_to_test(route):
+    if get_redirect_target_to_test(config, route):
       test("redirects to the correct place", lambda:test.eq(headers['Location'],
-        test_scheme_domain_port_string_for_redirects(config)+get_redirect_target_to_test(route)))
+        get_redirect_target_to_test(config, route)))
 
     if route == '/favicon.ico':
       # An out-of-date favicon isn't very serious
@@ -510,7 +413,7 @@ def do_tests(config):
     config.tests_nonresource_routes = set(map(dedomain, f.read().split('\n')))
 
   config.tests_existent_routes = config.tests_resource_routes | config.tests_nonresource_routes
-  config.tests_tested_routes = config.tests_existent_routes | set(status_codes_to_test)
+  config.tests_tested_routes = config.tests_existent_routes | set(config.test_status_codes)
 
   @asyncio.coroutine
   def test_route_here(route):

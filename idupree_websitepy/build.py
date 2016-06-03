@@ -42,7 +42,8 @@ class Config(object):
     # have a lot of data (e.g. images) on the site; all "True" tests
     # is that this library's Content-Length header code isn't buggy for
     # those things.
-    test_all_content_lengths = False
+    test_all_content_lengths = False,
+    test_status_codes = None
     ):
     """
     os.path.join(site_source_dir, site_document_root_relative_to_source_dir):
@@ -117,6 +118,20 @@ class Config(object):
       so it defaults to false. True downloads all files, even images/videos,
       from the test server just to test that the server sends the right
       number of bytes that it claims in its Content-Length header.
+
+      test_status_codes can be a dict from URL path to the HTTP status code that
+      it is supposed to return, or optionally for 3xx redirects it can be a tuple
+      of the desired status code and desired redirect destination.  Redirect
+      destinations in the tested site itself should be written without the
+      http://domain part, for example '/about/me' (because during testing they
+      should redirect to the test URL, not the production one).  External redirects
+      should be written with the http/https.
+      Example: test_status_codes = {
+        '/some/page': 200,
+        '/some/dir': (301, '/some-dir/'),
+        '/some/dir/': 200,
+        '/not/a/page': 404
+        }
     """
     assert(not re.search(r'\.\.|^/', site_document_root_relative_to_source_dir))
     if pandoc_template_relative_to_source_dir != None:
@@ -182,6 +197,9 @@ class Config(object):
     self.test_host_header = test_host_header
     self.test_canonical_origin = test_canonical_origin
     self.test_all_content_lengths = test_all_content_lengths
+    self.test_status_codes = test_status_codes
+    if self.test_status_codes == None:
+      self.test_status_codes = {}
 
   def is_fake_rr(self, route):
     return route[:len(self.fake_resource_route)] == self.fake_resource_route
