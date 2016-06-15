@@ -112,7 +112,8 @@ class Config(object):
       and get a Host header of test_host_header.
 
       If test_canonical_origin is specified, tests will check rel=canonical
-      headers/elements to match that.
+      headers/elements to match that. If True, check against
+      canonical_scheme_and_domain.
 
       test_all_content_lengths is a boolean that can make tests slow if True,
       so it defaults to false. True downloads all files, even images/videos,
@@ -195,6 +196,10 @@ class Config(object):
     self.test_host = test_host
     self.test_port = test_port
     self.test_host_header = test_host_header
+    if test_canonical_origin == False:
+        test_canonical_origin = None
+    if test_canonical_origin == True:
+        test_canonical_origin = self.canonical_scheme_and_domain
     self.test_canonical_origin = test_canonical_origin
     self.test_all_content_lengths = test_all_content_lengths
     self.test_status_codes = test_status_codes
