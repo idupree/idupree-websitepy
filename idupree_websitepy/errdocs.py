@@ -80,7 +80,7 @@ p,a {color:#008800;}
         '<p id="retry"><a href="javascript:location.reload(true)">Try again?</a></p>';</script>
 """ if err.retryable else ""
 )+"""<h1>"""+err.string+"""</h1>
-<p><a href="/">Return to idupree.com</a></p>
+<p><a href="/">Return to home page</a></p>
 </div></div></div>
 </body>
 </html>
