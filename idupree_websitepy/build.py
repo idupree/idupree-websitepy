@@ -16,6 +16,11 @@ cmd = subprocess.check_call
 
 class SasscDefault: pass
 
+def default_published_as_is(path):
+  return bool(re.search(r'\.(txt|asc|pdf|rss|atom|zip|tar\.(gz|bz2|xz)|appcache)$|'+
+          r'^/t\.gif$|^/favicon.ico$|/atom\.xml$',
+          path))
+
 class Config(object):
   def __init__(self, *,
     site_source_dir,
@@ -27,6 +32,7 @@ class Config(object):
     list_of_compilation_source_files,
     canonical_scheme_and_domain = None,
     nocdn_resources_path = '/_resources/',
+    published_as_is = default_published_as_is,
     doindexfrom,
     butdontindexfrom,
     error_on_missing_resource = True,
@@ -98,6 +104,12 @@ class Config(object):
       specify random values in 'bytes' format for rr_hash_random_bytes
       and nginx_hash_random_bytes.
 
+    published_as_is is a function called on existing files that returns
+      whether to publish them at that path on the website with no further
+      processing. For example, '/favicon.ico' should probably return True
+      but '/index.html' or '/style.css' or '/redirect.301' probably should
+      return False because they get special processing you probably want.
+
     doindexfrom and butdontindexfrom specify which pages we'll tell
       search engines not to index.  A page or resource is indexable if it
       can be reached* from a page in doindexfrom without passing through
@@ -168,6 +180,7 @@ class Config(object):
     self.nocdn_resources_path = nocdn_resources_path
     def expand_indexable_path(f):
       return canonical_scheme_and_domain+f if f[:1] == '/' else f
+    self.published_as_is = published_as_is
     self.doindexfrom = set(map(expand_indexable_path, doindexfrom))
     self.butdontindexfrom = set(map(expand_indexable_path, butdontindexfrom))
     if (self.doindexfrom & self.butdontindexfrom) != set():
@@ -425,7 +438,13 @@ def custom_site_preprocessing(config, do):
     src = join(src_document_root, srcf)
     route = None
     f = None
-    if re.search(r'\.(html|md)$', srcf):
+    if config.published_as_is('/'+srcf):
+      f = srcf
+      route = config.hypothetical_scheme_and_domain+'/'+f
+      dest = join('site', f)
+      for _ in do([src], [dest]):
+        os.link(src, dest)
+    elif re.search(r'\.(html|md)$', srcf):
       is_markdown = re.search(r'\.md$', srcf)
       extless_path = re.sub(r'\.(html|md)$', '', srcf)
       f = extless_path+'.html'
@@ -465,12 +484,6 @@ def custom_site_preprocessing(config, do):
         #so I'll run it every time.
         # Creates both f and f_map:
         cmd([config.sassc_command, '--sourcemap', src, dest])
-    elif re.search(r'\.(txt|asc|pdf|rss|atom|zip|tar\.(gz|bz2|xz)|appcache)$|^t\.gif$|^favicon.ico$|((^|/)atom\.xml)$|^haddock-presentation-2010/', srcf):
-      f = srcf
-      route = config.hypothetical_scheme_and_domain+'/'+f
-      dest = join('site', f)
-      for _ in do([src], [dest]):
-        os.link(src, dest)
     elif re.search(r'\.(3[0-9][0-9])$', srcf):
       extless_path = re.sub(r'\.(3[0-9][0-9])$', '', srcf)
       # Hmm should 'index.301' be a thing? or '.301'? or just use dirname.301
