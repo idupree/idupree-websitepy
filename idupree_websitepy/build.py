@@ -31,6 +31,7 @@ class Config(object):
     sassc_command = SasscDefault,
     list_of_compilation_source_files,
     canonical_scheme_and_domain = None,
+    origins_to_assume_contain_the_resources = None,
     nocdn_resources_path = '/_resources/',
     published_as_is = default_published_as_is,
     doindexfrom,
@@ -82,6 +83,15 @@ class Config(object):
     canonical_scheme_and_domain: default none,
       example 'http://www.idupree.com'.  Used in Link: rel="canonical"
       HTTP headers if it's provided.
+
+    origins_to_assume_contain_the_resources:
+      default to a set containing just canonical_scheme_and_domain without
+      the scheme (example {'www.idupree.com'}).  Allows you to do a
+      usually-unnecessary thing in resource rewriting, used e.g. for
+      og:image.  See resource_rewriting.py documentation for details.
+      If you access your resources on a special CDN URL in production,
+      you might end up changing the default.
+      (None = default; set() = no origins.)
 
     nocdn_resources_path:
       serve all resources (images, CSS, etc) with paths prefixed with this
@@ -173,6 +183,14 @@ class Config(object):
     # (if so, figure out how that interacts with how doindexfrom/butdontindexfrom
     #  are specified!!)
     self.hypothetical_scheme_and_domain = canonical_scheme_and_domain or 'https://hypothetical.idupree.com'
+
+    self.origins_to_assume_contain_the_resources = origins_to_assume_contain_the_resources
+    if self.origins_to_assume_contain_the_resources == None:
+      if self.canonical_scheme_and_domain != None:
+        self.origins_to_assume_contain_the_resources = {re.sub(r'^(https?:)?//', '', canonical_scheme_and_domain)}
+      else:
+        self.origins_to_assume_contain_the_resources = set()
+
     # fake_resource_route: prefixed to resource names to give them
     # routes before they are rewritten to the actual resource-route prefix
     # and contents-hash.  This is not an actual URI scheme.
@@ -514,6 +532,7 @@ def custom_site_preprocessing(config, do):
     rewritable_files = files_to_rewrite,
     site_source_prefix = 'site',
     hashed_data_prepend = config.rr_hash_random_bytes,
+    origins_to_assume_contain_the_resources = config.origins_to_assume_contain_the_resources,
     do=do)
 
   nonresource_routes = {route_ for route_ in route_metadata}

@@ -1,5 +1,5 @@
 
-import re, hashlib, base64, os
+import re, hashlib, base64, os, sys
 from os.path import exists, dirname, basename, isdir
 
 from . import urlregexps
@@ -7,16 +7,36 @@ from . import utils
 from .utils import join, normpath, abspath, relpath
 # from . import buildsystem  #not directly used
 
+class RewriterError(Exception):
+  def __init__(self, value):
+    self.value = value
+  def __str__(self):
+    return repr(self.value)
+
 def joinif(a, b):
   if a and b: return join(a, b)
   elif a: return a
   else: return b
 
-def direct_rr_deps_of_file(rr_ref_re, fpath, site_files_prefix):
+def direct_rr_deps_of_file(rr_ref_re, fpath, site_files_prefix, origins_to_assume_contain_the_resources):
   fdirname = dirname(fpath)
   contents = utils.read_file_binary(fpath)
   for match in re.finditer(rr_ref_re, contents):
     rel_ref = match.group('ref').decode('utf-8')
+    origin_match = re.search(r'^(?:https?:)?//([^/]+)(.*)$', rel_ref)
+    if origin_match:
+      protocolless_origin = origin_match.group(1)
+      if protocolless_origin not in origins_to_assume_contain_the_resources:
+        #sys.stderr.write("WARNING: origin we don't know how to rewrite\n" +
+        raise RewriterError("ERROR: " + repr(fpath) + ":\n" +
+                "  origin we don't know how to rewrite:\n" +
+          "    " + repr(protocolless_origin) + "\n" +
+          "  in " + repr(rel_ref) + "\n" +
+          "  Origin not listed in origins_to_assume_contain_the_resources:\n" +
+          "  " + repr(origins_to_assume_contain_the_resources) + "\n")
+      rel_ref = origin_match.group(2)
+    #rel_ref = re.sub(r'^(?:https?:)?//[^/]+', '', rel_ref)
+    #rel_ref = re.search(r'^((https?:)?//([^/]+))?(.*)$', '', rel_ref)
     if rel_ref[:1] == '/': ref = site_files_prefix+rel_ref
     else: ref = join(fdirname, rel_ref)
     yield normpath(ref)
@@ -26,12 +46,19 @@ def resolve_rr_deps_of_file(rr_ref_re, fpath, fpathout, f, site_files_prefix):
   contents = utils.read_file_binary(fpath)
   def g(match):
     rel_ref = match.group('ref').decode('utf-8')
+    origin_match = re.search(r'^((?:https?:)?//[^/]+)(.*)$', rel_ref)
+    if origin_match:
+      origin = origin_match.group(1)
+      rel_ref = origin_match.group(2)
+    else:
+      origin = ''
     if rel_ref[:1] == '/': ref = site_files_prefix+rel_ref
     else: ref = join(fdirname, rel_ref)
     result = f(normpath(ref))
     # some/dir/?rr keeps the trailing slash when rewritten:
     if ref[-1:] == '/' and result[-1:] != '/':
       result += '/'
+    result = origin + result
     return result.encode('utf-8')
   contentsout = re.sub(rr_ref_re, g, contents)
   utils.write_file_binary(fpathout, contentsout)
@@ -65,7 +92,8 @@ class ResourceRewriter(object):
           r'\1.'+base64.urlsafe_b64encode(hashdigest)[:15].decode('ascii')+r'\2',
           f),
       do = None,
-      hashed_data_prepend = b''
+      hashed_data_prepend = b'',
+      origins_to_assume_contain_the_resources = set()
       ):
     """
     Must be called with keyword arguments.  Most have defaults but you must specify
@@ -87,6 +115,16 @@ class ResourceRewriter(object):
     new versions and old versions work better -- then you should pass the
     same value every time.  One reasonable way to get such random data is
     our utils module's alnum_secret: alnum_secret().encode('ascii')
+
+    origins_to_assume_contain_the_resources is a set of places you can write
+    absolute links to with ?rr that will be rewritten but keep the same domain.
+    This is needed for <meta name="og:image"> because twitter and facebook
+    do not accept a relative path in its contents. If only supporting facebook,
+    you can use <link rel="image_src"> instead, but twitter needs that to be
+    an full URL even in <link>.  A downside of full paths is they won't point
+    to your testing environment when used in the testing environment, they won't
+    adapt to the refering page's http/https-ness, etc.
+    Example: origins_to_assume_contain_the_resources = {'www.example.com'}
     """
     if do == None:
       def do(srcs, dests):
@@ -124,7 +162,8 @@ class ResourceRewriter(object):
     for f in rewritable_files:
       for [src], [dest] in do([join(site_source_prefix, f)], [self._direct_deps_f(f)]):
         direct_deps = [relpath(dd, site_source_prefix) for dd in
-                       direct_rr_deps_of_file(rr_ref_re, src, site_source_prefix)]
+                       direct_rr_deps_of_file(rr_ref_re, src, site_source_prefix,
+                                              origins_to_assume_contain_the_resources)]
         io['w'](dest, serialize_path_set(direct_deps))
       self._referenced_resource_files.update(self.recall_direct_deps(f))
     def referenced_dir(f):
