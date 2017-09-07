@@ -316,6 +316,7 @@ def test_route(config, route):
           b'POST /?parser=html5&out=json HTTP/1.0\r\n'+
           b'Content-Type: '+content_type.encode('utf-8')+b'\r\n'+
           b'Content-Length: '+str(len(body)).encode('utf-8')+b'\r\n'+
+          b'User-Agent: websitepytester\r\n'+
           b'\r\n'+
           body
           )
